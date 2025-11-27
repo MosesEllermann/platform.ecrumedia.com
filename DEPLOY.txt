@@ -1,0 +1,168 @@
+SIMPLE SERVER DEPLOYMENT GUIDE
+==============================
+
+STEP 1: SETUP YOUR SERVER (One time only)
+------------------------------------------
+
+1. SSH into your server:
+   ssh user@yourserver.com
+
+2. Copy and run this entire block:
+
+   # Install Node.js, PM2, and PostgreSQL
+   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+   sudo apt-get install -y nodejs postgresql postgresql-contrib
+   sudo npm install -g pm2
+
+   # Create database
+   sudo -u postgres psql << EOF
+   CREATE DATABASE ecrumedia_portal;
+   CREATE USER ecrumedia WITH ENCRYPTED PASSWORD 'ChangeThisPassword123!';
+   GRANT ALL PRIVILEGES ON DATABASE ecrumedia_portal TO ecrumedia;
+   ALTER DATABASE ecrumedia_portal OWNER TO ecrumedia;
+   \q
+   EOF
+
+   # Create app directory
+   mkdir -p ~/app/backend/logs
+
+   # Create backend .env file
+   cat > ~/app/backend/.env << 'ENVEOF'
+   DATABASE_URL="postgresql://ecrumedia:ChangeThisPassword123!@localhost:5432/ecrumedia_portal"
+   JWT_SECRET="your-super-secret-jwt-key-change-this"
+   JWT_EXPIRES_IN="7d"
+   PORT=3000
+   NODE_ENV="production"
+   FRONTEND_URL="https://yourdomain.com"
+   ENVEOF
+
+   # Make PM2 start on boot
+   pm2 startup
+   # Run the command it gives you (will look like: sudo env PATH=...)
+   pm2 save
+
+3. IMPORTANT: Edit the .env file with your actual values:
+   nano ~/app/backend/.env
+   - Change the database password
+   - Change the JWT_SECRET to a random string
+   - Update FRONTEND_URL to your domain
+
+
+STEP 2: CONFIGURE WEB SERVER (One time only)
+---------------------------------------------
+
+For NGINX (if using):
+   sudo nano /etc/nginx/sites-available/ecrumedia
+
+Paste this (replace YOUR_USERNAME and yourdomain.com):
+
+   server {
+       listen 80;
+       server_name yourdomain.com www.yourdomain.com;
+       root /home/YOUR_USERNAME/app/dist;
+       index index.html;
+
+       location / {
+           try_files $uri $uri/ /index.html;
+       }
+
+       location /api {
+           proxy_pass http://localhost:3000;
+           proxy_http_version 1.1;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+       }
+   }
+
+Enable site:
+   sudo ln -s /etc/nginx/sites-available/ecrumedia /etc/nginx/sites-enabled/
+   sudo nginx -t
+   sudo systemctl reload nginx
+
+
+STEP 3: SETUP AUTO-DEPLOYMENT (One time only)
+----------------------------------------------
+
+1. Go to your GitHub repository settings
+2. Click "Secrets and variables" -> "Actions"
+3. Add these secrets:
+   - SERVER_HOST: your server IP (e.g., 123.45.67.89)
+   - SERVER_USER: your SSH username
+   - SERVER_SSH_KEY: your private SSH key (entire content of ~/.ssh/id_rsa)
+
+To get your SSH key:
+   cat ~/.ssh/id_rsa
+   # Copy everything including BEGIN and END lines
+
+
+DONE! NOW IT'S AUTOMATIC
+------------------------
+
+Every time you push to main branch:
+   git add .
+   git commit -m "your changes"
+   git push origin main
+
+GitHub Actions will automatically:
+✓ Build your frontend
+✓ Build your backend
+✓ Deploy both to server
+✓ Run database migrations
+✓ Restart backend service
+
+View deployment progress:
+- GitHub -> Your repo -> Actions tab
+
+
+USEFUL SERVER COMMANDS
+----------------------
+
+Check if backend is running:     pm2 status
+View backend logs:               pm2 logs ecrumedia-backend
+Restart backend:                 pm2 restart ecrumedia-backend
+View recent errors:              pm2 logs ecrumedia-backend --err --lines 50
+
+Database access:
+   cd ~/app/backend
+   npx prisma studio
+   # Opens database GUI at http://localhost:5555
+
+
+TROUBLESHOOTING
+---------------
+
+Backend won't start?
+1. Check logs: pm2 logs
+2. Check .env file: cat ~/app/backend/.env
+3. Test database: cd ~/app/backend && npx prisma migrate status
+
+Deployment failed?
+1. Check GitHub Actions logs in your repo
+2. Verify SSH connection: ssh user@yourserver.com
+3. Check server disk space: df -h
+
+
+FIRST DEPLOYMENT (Manual)
+--------------------------
+
+If you want to deploy manually first time before GitHub Actions:
+
+1. Build locally:
+   npm run build
+   cd backend && npm run build && cd ..
+
+2. Copy to server:
+   scp -r dist user@yourserver.com:~/app/
+   scp -r backend/dist user@yourserver.com:~/app/backend/
+   scp backend/package*.json user@yourserver.com:~/app/backend/
+   scp -r backend/prisma user@yourserver.com:~/app/backend/
+   scp ecosystem.config.js user@yourserver.com:~/app/
+
+3. On server:
+   ssh user@yourserver.com
+   cd ~/app/backend
+   npm ci --omit=dev
+   npx prisma generate
+   npx prisma migrate deploy
+   cd ..
+   pm2 start ecosystem.config.js

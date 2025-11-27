@@ -1,0 +1,176 @@
+╔═══════════════════════════════════════════════════════════════╗
+║        DEPLOYMENT GUIDE FOR sPANEL WITH MYSQL                 ║
+╚═══════════════════════════════════════════════════════════════╝
+
+PREREQUISITES:
+--------------
+✓ sPanel with Node.js Manager
+✓ sPanel with MySQL support
+✓ SSH access to server
+
+
+STEP 1: SETUP MYSQL DATABASE IN sPANEL
+---------------------------------------
+
+1. Login to sPanel
+2. Go to "Databases" → "MySQL"
+3. Create new database:
+   - Database name: ecrumedia_portal
+   - Username: ecrumedia
+   - Password: (choose a strong password - save it!)
+4. Note the connection details:
+   - Host: usually "localhost" or "127.0.0.1"
+   - Port: 3306 (default)
+   - Database: ecrumedia_portal
+   - Username: ecrumedia_username (might have prefix)
+   - Password: your_password
+
+
+STEP 2: SETUP NODE.JS APP IN sPANEL
+------------------------------------
+
+1. In sPanel, go to "Node.js Manager" or "Node.js Selector"
+2. Click "Create Application" or "Setup Node.js App"
+3. Fill in:
+   - Application Name: ecrumedia-backend
+   - Node.js Version: 20.x (or latest available)
+   - Application Mode: Production
+   - Application Root: /home/yourusername/ecrumedia/backend
+   - Application Startup File: dist/main.js
+   - Port: (sPanel will assign - note it down, e.g., 40001)
+
+4. Click "Create"
+
+
+STEP 3: PREPARE YOUR LOCAL PROJECT (One time)
+----------------------------------------------
+
+⚠️ IMPORTANT: Your database has been switched from PostgreSQL to MySQL!
+
+1. Reset your local development database:
+   cd backend
+   rm -rf prisma/migrations  # Remove old PostgreSQL migrations
+   
+2. Update docker-compose.yml for MySQL (or skip and use remote DB):
+   (See bottom of this file for MySQL docker-compose)
+
+3. Create new migration:
+   npx prisma migrate dev --name init
+   
+4. Commit the changes:
+   git add prisma/schema.prisma prisma/migrations/
+   git commit -m "Switch to MySQL for sPanel compatibility"
+   git push
+
+
+STEP 4: DEPLOY BACKEND VIA SSH
+-------------------------------
+
+1. SSH into your server:
+   ssh yourusername@yourserver.com
+
+2. Create directories:
+   mkdir -p ~/ecrumedia/backend
+   cd ~/ecrumedia
+
+3. Clone your repo:
+   git clone https://github.com/mosesellermann/platform.ecrumedia.com.git temp
+   cd temp/backend
+   npm install
+   npm run build
+
+4. Copy built files:
+   cp -r dist ~/ecrumedia/backend/
+   cp package*.json ~/ecrumedia/backend/
+   cp -r prisma ~/ecrumedia/backend/
+   cd ~/ecrumedia/backend
+   npm ci --omit=dev
+
+5. Create .env file:
+   nano ~/ecrumedia/backend/.env
+
+Paste this (update with your actual values):
+   DATABASE_URL="mysql://USERNAME:PASSWORD@localhost:3306/DATABASE_NAME"
+   JWT_SECRET="your-super-secret-random-string-change-this"
+   JWT_EXPIRES_IN="7d"
+   PORT=40001
+   NODE_ENV="production"
+   FRONTEND_URL="https://yourdomain.com"
+
+   Replace:
+   - USERNAME: your sPanel MySQL username
+   - PASSWORD: the password you set
+   - DATABASE_NAME: your database name
+   - PORT: the port sPanel assigned
+   - FRONTEND_URL: your actual domain
+
+   Save: Ctrl+X, Y, Enter
+
+6. Run database migrations:
+   npx prisma generate
+   npx prisma migrate deploy
+
+7. Start in sPanel:
+   Node.js Manager → Start ecrumedia-backend
+
+
+STEP 5: DEPLOY FRONTEND
+------------------------
+
+1. Build frontend locally:
+   npm run build
+
+2. Upload to server:
+   scp -r dist/* yourusername@yourserver.com:~/public_html/
+
+
+STEP 6: CONFIGURE API PROXY
+----------------------------
+
+Create .htaccess in ~/public_html:
+   cd ~/public_html
+   nano .htaccess
+
+Add:
+   RewriteEngine On
+   RewriteRule ^api/(.*)$ http://localhost:PORT/api/$1 [P,L]
+
+Replace PORT with your Node.js port
+
+
+STEP 7: TEST
+------------
+
+Visit: https://yourdomain.com
+
+
+UPDATING:
+---------
+
+1. Build: npm run build && cd backend && npm run build
+2. Upload files
+3. SSH: cd ~/ecrumedia/backend && npx prisma migrate deploy
+4. Restart in sPanel
+
+
+MYSQL DOCKER-COMPOSE (for local dev):
+--------------------------------------
+
+version: '3.8'
+services:
+  mysql:
+    image: mysql:8
+    container_name: ecrumedia_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ecrumedia_portal
+      MYSQL_USER: ecrumedia
+      MYSQL_PASSWORD: ecrumedia
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
