@@ -1,0 +1,37 @@
+/* Print styles for invoice */
+@media print {
+  /* Hide everything except the invoice */
+  body * {
+    visibility: hidden;
+  }
+  
+  #invoice-print-content,
+  #invoice-print-content * {
+    visibility: visible;
+  }
+  
+  #invoice-print-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  
+  /* Page settings */
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  
+  /* Remove backgrounds for print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  /* Hide buttons and UI elements */
+  button, .no-print {
+    display: none !important;
+  }
+}
