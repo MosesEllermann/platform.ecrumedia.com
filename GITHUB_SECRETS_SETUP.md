@@ -37,8 +37,14 @@ To enable automatic deployments, you need to add these secrets to your GitHub re
 
 ### 5. DATABASE_URL
 - **Name:** `DATABASE_URL`
-- **Value:** `mysql://username:password@localhost:3306/database_name`
+- **Value:** `mysql://your_mysql_user:your_mysql_password@localhost:3306/your_database_name`
 - **Description:** MySQL database connection string on your server
+- **Example:** `mysql://site22570_db:MySecurePass123@localhost:3306/site22570_platform`
+- **Important:** Replace the placeholder values:
+  - `your_mysql_user` → Your actual MySQL username (e.g., `site22570_db`)
+  - `your_mysql_password` → Your actual MySQL password
+  - `your_database_name` → Your actual database name (e.g., `site22570_platform`)
+- **⚠️ Common Issue:** If you see errors like "Authentication failed against database server, the provided database credentials for `ihr_mysql_user` are not valid", it means this secret still contains placeholder text and needs to be updated with your real MySQL credentials from sPanel.
 
 ### 6. JWT_SECRET
 - **Name:** `JWT_SECRET`

@@ -74,10 +74,9 @@ jobs:
           script: |
             cd /home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com/backend
             
-            # Create .env file if it doesn't exist
-            if [ ! -f .env ]; then
-              echo "Creating .env file..."
-              cat > .env << EOF
+            # Create .env file - always recreate to ensure it's up to date
+            echo "Creating .env file..."
+            cat > .env << EOF
             DATABASE_URL="$DATABASE_URL"
             JWT_SECRET="$JWT_SECRET"
             FRONTEND_URL="https://platform.ecrumedia.com"
@@ -87,7 +86,6 @@ jobs:
             EMAIL_PASSWORD="$EMAIL_PASSWORD"
             EMAIL_FROM="$EMAIL_FROM"
             EOF
-            fi
             
             npm ci --omit=dev
             npx prisma generate
