@@ -59,7 +59,7 @@ jobs:
           target: "/home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com/backend/"
           strip_components: 1
 
-      - name: Update Backend and Restart with PM2
+      - name: Update Backend and Restart via sPanel API
         uses: appleboy/ssh-action@v1.0.3
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -76,6 +76,7 @@ jobs:
             APP_ROOT="/home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com"
             BACKEND_DIR="$APP_ROOT/backend"
             cd "$BACKEND_DIR"
+            trap 'echo "SIGTERM received during restart (expected). Continuing and exiting cleanly."; exit 0' TERM
             
             # Create .env file with required variables
             echo "Creating .env file..."
@@ -90,12 +91,6 @@ jobs:
             
             echo "Installing dependencies..."
             npm ci --omit=dev
-            
-            # Install PM2 globally if not already installed
-            if ! command -v pm2 &> /dev/null; then
-              echo "Installing PM2..."
-              npm install -g pm2
-            fi
             
             echo "Generating Prisma Client..."
             npx prisma generate
@@ -116,20 +111,17 @@ jobs:
             EOF
             cd "$BACKEND_DIR"
 
-            echo "Starting/Restarting application with PM2..."
-            # Stop existing PM2 process if running
-            pm2 stop ecrumedia-backend || echo "No existing process to stop"
-            pm2 delete ecrumedia-backend || echo "No existing process to delete"
-            
-            # Start the application with PM2
-            pm2 start dist/main.js --name ecrumedia-backend --time
-            
-            # Save PM2 process list
-            pm2 save
-            
-            # Setup PM2 to start on system boot (if not already done)
-            pm2 startup || echo "PM2 startup already configured"
+            echo "Restarting application..."
+            # Method 1: Try sPanel-specific restart (if available)
+            if [ -f ~/bin/restart-app ]; then
+              ~/bin/restart-app ecrumedia-backend
+            # Method 2: Try Passenger-style restart
+            elif [ -d tmp ]; then
+              mkdir -p tmp
+              touch tmp/restart.txt
+            # Method 3: Kill process (sPanel should auto-restart)
+            else
+              pkill -f "node.*dist/main.js" || echo "No running process found"
+            fi
             
             echo "Deployment completed!"
-            echo "Backend status:"
-            pm2 status
