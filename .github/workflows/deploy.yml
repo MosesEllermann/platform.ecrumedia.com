@@ -55,7 +55,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT }}
-          source: "backend/dist,backend/package.json,backend/package-lock.json,backend/prisma"
+          source: "backend/dist,backend/package.json,backend/package-lock.json,backend/prisma,backend/app.yml"
           target: "/home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com/backend/"
           strip_components: 1
 
@@ -112,16 +112,34 @@ jobs:
             cd "$BACKEND_DIR"
 
             echo "Restarting application..."
-            # Method 1: Try sPanel-specific restart (if available)
-            if [ -f ~/bin/restart-app ]; then
-              ~/bin/restart-app ecrumedia-backend
-            # Method 2: Try Passenger-style restart
+            
+            # Check if nodeapp command exists (sPanel CLI)
+            if command -v nodeapp &> /dev/null; then
+              echo "Using sPanel nodeapp CLI..."
+              nodeapp restart ecrumedia-backend || nodeapp start ecrumedia-backend
+            # Try Passenger-style restart (some sPanel versions use this)
             elif [ -d tmp ]; then
+              echo "Using Passenger restart method..."
               mkdir -p tmp
               touch tmp/restart.txt
-            # Method 3: Kill process (sPanel should auto-restart)
+            # Try PM2 if available
+            elif command -v pm2 &> /dev/null; then
+              echo "Using PM2..."
+              pm2 restart ecrumedia-backend || pm2 start dist/main.js --name ecrumedia-backend
+              pm2 save
+            # Fallback: start with node directly in background
             else
-              pkill -f "node.*dist/main.js" || echo "No running process found"
+              echo "Starting with node directly..."
+              pkill -f "node.*dist/main.js" || true
+              nohup node dist/main.js > output.log 2>&1 &
+              echo "Backend started. Check output.log for logs."
             fi
             
             echo "Deployment completed!"
+            echo "Checking if backend is running on port $APP_PORT..."
+            sleep 2
+            if curl -s http://127.0.0.1:$APP_PORT/api/health > /dev/null 2>&1; then
+              echo "✅ Backend is responding!"
+            else
+              echo "⚠️ Backend may not be running. Check logs manually."
+            fi
