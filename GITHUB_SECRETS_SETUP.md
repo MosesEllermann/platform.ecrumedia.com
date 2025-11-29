@@ -17,8 +17,8 @@ To enable automatic deployments, you need to add these secrets to your GitHub re
 
 ### 1. SERVER_HOST
 - **Name:** `SERVER_HOST`
-- **Value:** `ecrumedia.com`
-- **Description:** Your server hostname
+- **Value:** `78.46.76.56` (or `ecrumedia.com`)
+- **Description:** Your server hostname or IP address
 
 ### 2. SERVER_PORT
 - **Name:** `SERVER_PORT`
@@ -34,6 +34,41 @@ To enable automatic deployments, you need to add these secrets to your GitHub re
 - **Name:** `SERVER_PASSWORD`
 - **Value:** `[Your SSH password]`
 - **Description:** Your SSH password (the one you use to login via SSH)
+
+### 5. DATABASE_URL
+- **Name:** `DATABASE_URL`
+- **Value:** `mysql://username:password@localhost:3306/database_name`
+- **Description:** MySQL database connection string on your server
+
+### 6. JWT_SECRET
+- **Name:** `JWT_SECRET`
+- **Value:** `[Random secure string, e.g., generated with: openssl rand -base64 32]`
+- **Description:** Secret key for JWT token generation
+
+### 7. EMAIL_HOST
+- **Name:** `EMAIL_HOST`
+- **Value:** `smtp.example.com`
+- **Description:** SMTP server hostname
+
+### 8. EMAIL_PORT
+- **Name:** `EMAIL_PORT`
+- **Value:** `587` or `465`
+- **Description:** SMTP server port
+
+### 9. EMAIL_USER
+- **Name:** `EMAIL_USER`
+- **Value:** `your-email@example.com`
+- **Description:** SMTP username
+
+### 10. EMAIL_PASSWORD
+- **Name:** `EMAIL_PASSWORD`
+- **Value:** `[Your email password]`
+- **Description:** SMTP password
+
+### 11. EMAIL_FROM
+- **Name:** `EMAIL_FROM`
+- **Value:** `"ECRU Media Platform" <noreply@ecrumedia.com>`
+- **Description:** From address for outgoing emails
 
 ---
 

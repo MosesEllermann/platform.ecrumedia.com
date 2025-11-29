@@ -32,15 +32,6 @@ jobs:
           npx prisma generate
           npm run build
 
-      - name: Debug - Check Server Connection
-        run: |
-          echo "Testing connection to server..."
-          echo "Host: ${{ secrets.SERVER_HOST }}"
-          echo "Port: ${{ secrets.SERVER_PORT }}"
-          echo "User: ${{ secrets.SERVER_USER }}"
-          ping -c 3 ${{ secrets.SERVER_HOST }} || echo "Ping failed, trying nslookup..."
-          nslookup ${{ secrets.SERVER_HOST }} || echo "DNS lookup failed"
-
       - name: Deploy Frontend to Server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -73,6 +64,22 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           script: |
             cd /home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com/backend
+            
+            # Create .env file if it doesn't exist
+            if [ ! -f .env ]; then
+              echo "Creating .env file..."
+              cat > .env << 'EOF'
+            DATABASE_URL="${{ secrets.DATABASE_URL }}"
+            JWT_SECRET="${{ secrets.JWT_SECRET }}"
+            FRONTEND_URL="https://platform.ecrumedia.com"
+            EMAIL_HOST="${{ secrets.EMAIL_HOST }}"
+            EMAIL_PORT="${{ secrets.EMAIL_PORT }}"
+            EMAIL_USER="${{ secrets.EMAIL_USER }}"
+            EMAIL_PASSWORD="${{ secrets.EMAIL_PASSWORD }}"
+            EMAIL_FROM="${{ secrets.EMAIL_FROM }}"
+            EOF
+            fi
+            
             npm ci --omit=dev
             npx prisma generate
             npx prisma migrate deploy
