@@ -28,6 +28,8 @@ The deployment **IS working correctly**. Here's why:
 
 **This is the CORRECT behavior!** The SSH action runs your script, then closes the connection.
 
+> **Update (Nov 2025):** The deploy workflow now traps SIGTERM inside the SSH script (see `.github/workflows/deploy.yml`). You'll still see the informational "SIGTERM received" message, but the GitHub Actions job now exits successfully.
+
 ---
 
 ## Why It Might Seem Wrong

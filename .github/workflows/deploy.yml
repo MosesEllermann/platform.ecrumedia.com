@@ -69,6 +69,7 @@ jobs:
           envs: DATABASE_URL,JWT_SECRET,APP_PORT
           script: |
             cd /home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com/backend
+            trap 'echo "SIGTERM received during restart (expected). Continuing and exiting cleanly."; exit 0' TERM
             
             # Create .env file with required variables
             echo "Creating .env file..."
