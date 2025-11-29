@@ -57,26 +57,35 @@ jobs:
 
       - name: Update Backend and Restart via sPanel API
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+          EMAIL_PORT: ${{ secrets.EMAIL_PORT }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT }}
+          envs: DATABASE_URL,JWT_SECRET,EMAIL_HOST,EMAIL_PORT,EMAIL_USER,EMAIL_PASSWORD,EMAIL_FROM
           script: |
             cd /home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com/backend
             
             # Create .env file if it doesn't exist
             if [ ! -f .env ]; then
               echo "Creating .env file..."
-              cat > .env << 'EOF'
-            DATABASE_URL="${{ secrets.DATABASE_URL }}"
-            JWT_SECRET="${{ secrets.JWT_SECRET }}"
+              cat > .env << EOF
+            DATABASE_URL="$DATABASE_URL"
+            JWT_SECRET="$JWT_SECRET"
             FRONTEND_URL="https://platform.ecrumedia.com"
-            EMAIL_HOST="${{ secrets.EMAIL_HOST }}"
-            EMAIL_PORT="${{ secrets.EMAIL_PORT }}"
-            EMAIL_USER="${{ secrets.EMAIL_USER }}"
-            EMAIL_PASSWORD="${{ secrets.EMAIL_PASSWORD }}"
-            EMAIL_FROM="${{ secrets.EMAIL_FROM }}"
+            EMAIL_HOST="$EMAIL_HOST"
+            EMAIL_PORT="$EMAIL_PORT"
+            EMAIL_USER="$EMAIL_USER"
+            EMAIL_PASSWORD="$EMAIL_PASSWORD"
+            EMAIL_FROM="$EMAIL_FROM"
             EOF
             fi
             
