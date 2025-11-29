@@ -7,6 +7,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      FRONTEND_URL: https://platform.ecrumedia.com
     
     steps:
       - name: Checkout code
@@ -19,6 +21,8 @@ jobs:
           cache: 'npm'
 
       - name: Build Frontend
+        env:
+          VITE_API_URL: ${{ env.FRONTEND_URL }}
         run: |
           npm ci
           npm run build
@@ -79,7 +83,7 @@ jobs:
             JWT_EXPIRES_IN="7d"
             PORT="$APP_PORT"
             NODE_ENV="production"
-            FRONTEND_URL="https://platform.ecrumedia.com"
+            FRONTEND_URL="$FRONTEND_URL"
             EOF
             
             echo "Installing dependencies..."
