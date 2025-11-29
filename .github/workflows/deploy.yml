@@ -1,4 +1,4 @@
-name: Deploy to Server
+name: Deploy to sPanel
 
 on:
   push:
@@ -29,26 +29,43 @@ jobs:
           npm ci
           npm run build
 
-      - name: Deploy to Server
+      - name: Deploy Frontend to Server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "dist,backend/dist,backend/package.json,backend/package-lock.json,backend/prisma,ecosystem.config.js"
-          target: "/home/${{ secrets.SERVER_USER }}/app"
-          strip_components: 0
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: "dist/*"
+          target: "/home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com/"
+          strip_components: 1
+          rm: true
 
-      - name: Install Dependencies and Restart
+      - name: Deploy Backend to Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: "backend/dist,backend/package.json,backend/package-lock.json,backend/prisma"
+          target: "/home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com/backend/"
+          strip_components: 1
+
+      - name: Update Backend and Restart via sPanel API
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: ${{ secrets.SERVER_PORT }}
           script: |
-            cd /home/${{ secrets.SERVER_USER }}/app/backend
+            cd /home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com/backend
             npm ci --omit=dev
             npx prisma generate
             npx prisma migrate deploy
-            cd ..
-            pm2 restart ecosystem.config.js || pm2 start ecosystem.config.js
+            
+            # Restart Node.js app via sPanel CLI (if available)
+            # OR use: touch tmp/restart.txt (Passenger-style restart)
+            # OR use: pkill -f "node.*dist/main.js" (force restart - app will auto-restart via sPanel)
+            pkill -f "node.*dist/main.js" || true

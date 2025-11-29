@@ -1,4 +1,108 @@
-# TailAdmin React - Free React Tailwind Admin Dashboard Template
+# Ecru Media Platform
+
+Admin Dashboard und Plattform für Ecru Media, gebaut mit React, NestJS und MySQL.
+
+## 🚀 Quick Start - Lokale Entwicklung
+
+### Voraussetzungen
+- Node.js 18.x oder höher
+- Docker Desktop ([Download](https://www.docker.com/products/docker-desktop))
+
+### Setup in 2 Schritten
+
+1. **Automatisches Setup ausführen:**
+   ```bash
+   ./setup-local-dev.sh
+   ```
+
+2. **Entwicklungsserver starten:**
+   ```bash
+   # Terminal 1: Backend
+   cd backend && npm run start:dev
+   
+   # Terminal 2: Frontend
+   npm run dev
+   ```
+
+Das war's! Die Anwendung läuft jetzt auf:
+- Frontend: http://localhost:5173
+- Backend: http://localhost:3000
+- Default Login: admin@ecrumedia.com / Admin123!
+
+### Detaillierte Dokumentation
+
+Für mehr Details siehe [LOCAL_DEV_SETUP.md](./LOCAL_DEV_SETUP.md)
+
+---
+
+## 📦 Projektstruktur
+
+```
+platform.ecrumedia.com/
+├── backend/                 # NestJS Backend API
+│   ├── src/
+│   │   ├── auth/           # Authentication Module
+│   │   ├── clients/        # Client Management
+│   │   ├── invoices/       # Invoice Management
+│   │   ├── quotes/         # Quote Management
+│   │   └── ...
+│   └── prisma/             # Database Schema & Migrations
+├── src/                    # React Frontend
+│   ├── components/
+│   ├── pages/
+│   └── context/
+└── docker-compose.dev.yml  # Local MySQL Setup
+```
+
+## 🛠️ Verfügbare Scripts
+
+### Backend (`cd backend && ...`)
+- `npm run start:dev` - Entwicklungsserver mit Hot Reload
+- `npm run prisma:studio` - Datenbank GUI
+- `npm run prisma:migrate` - Datenbank Migration
+- `npm run update-admin` - Admin User erstellen/updaten
+
+### Frontend
+- `npm run dev` - Entwicklungsserver
+- `npm run build` - Production Build
+- `npm run preview` - Preview des Production Builds
+
+## 🗄️ Datenbank Management
+
+### MySQL Container verwalten
+```bash
+# Status prüfen
+docker-compose -f docker-compose.dev.yml ps
+
+# Logs anzeigen
+docker-compose -f docker-compose.dev.yml logs -f mysql
+
+# Stoppen
+docker-compose -f docker-compose.dev.yml down
+
+# Stoppen + Daten löschen
+docker-compose -f docker-compose.dev.yml down -v
+```
+
+### Prisma Studio (Database GUI)
+```bash
+cd backend
+npm run prisma:studio
+```
+
+## 🚢 Deployment
+
+Siehe [AUTO_DEPLOY_GUIDE.md](./AUTO_DEPLOY_GUIDE.md) für Details zum automatischen Deployment auf sPanel.
+
+## 📚 Weitere Dokumentation
+
+- [LOCAL_DEV_SETUP.md](./LOCAL_DEV_SETUP.md) - Ausführliche Anleitung für lokale Entwicklung
+- [AUTO_DEPLOY_GUIDE.md](./AUTO_DEPLOY_GUIDE.md) - Auto-Deployment Setup
+- [EMAIL_SETUP.md](./EMAIL_SETUP.md) - E-Mail Konfiguration
+
+---
+
+## 🎨 Template Basis
 
 TailAdmin is a free and open-source admin dashboard template built on **React and Tailwind CSS**, providing developers
 with everything they need to create a comprehensive, data-driven back-end,

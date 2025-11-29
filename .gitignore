@@ -35,5 +35,11 @@ test-results
 !.env.production
 backend/.env
 
+# Deployment guides (may contain sensitive info)
+DEPLOY_SPANEL.txt
+DEPLOYMENT.txt
+DEPLOY.txt
+*.deploy.md
+
 # Build
 build

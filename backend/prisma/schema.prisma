@@ -63,12 +63,13 @@ model User {
 model Session {
   id            String   @id @default(cuid())
   userId        String
-  token         String   @unique
+  token         String   @db.VarChar(768)
   expiresAt     DateTime
   createdAt     DateTime @default(now())
   
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
+  @@unique([token])
   @@map("sessions")
 }
 

@@ -14,20 +14,19 @@ STEP 1: SETUP MYSQL DATABASE IN sPANEL
 
 1. Login to sPanel
 2. Go to "Databases" → "MySQL"
-3. Create new database:
-   - Database name: ecrumedia_portal
-   - Username: ecrumedia
-   - Password: (choose a strong password - save it!)
+3. Create new database
 4. Note the connection details:
    - Host: usually "localhost" or "127.0.0.1"
    - Port: 3306 (default)
-   - Database: ecrumedia_portal
-   - Username: ecrumedia_username (might have prefix)
-   - Password: your_password
+   - Database: site22570_ecrumedia_platform
+   - Username: site22570_moses
+   - Password: LIni05IhzDlpz
 
 
-STEP 2: SETUP NODE.JS APP IN sPANEL
-------------------------------------
+STEP 2: SETUP NODE.JS APP IN sPANEL (DO THIS LAST!)
+---------------------------------------------------
+
+⚠️ IMPORTANT: Only create the Node.js app AFTER deploying files (Step 4)!
 
 1. In sPanel, go to "Node.js Manager" or "Node.js Selector"
 2. Click "Create Application" or "Setup Node.js App"
@@ -35,11 +34,10 @@ STEP 2: SETUP NODE.JS APP IN sPANEL
    - Application Name: ecrumedia-backend
    - Node.js Version: 20.x (or latest available)
    - Application Mode: Production
-   - Application Root: /home/yourusername/ecrumedia/backend
+   - Application Root: /home/site22570/platform.ecrumedia.com/backend
    - Application Startup File: dist/main.js
-   - Port: (sPanel will assign - note it down, e.g., 40001)
-
-4. Click "Create"
+   - Port: 40001 (or whatever port sPanel assigns)
+4. Click "Create" (but DON'T start it yet - deploy files first!)
 
 
 STEP 3: PREPARE YOUR LOCAL PROJECT (One time)
@@ -63,55 +61,64 @@ STEP 3: PREPARE YOUR LOCAL PROJECT (One time)
    git push
 
 
-STEP 4: DEPLOY BACKEND VIA SSH
--------------------------------
+STEP 4: DEPLOY BACKENSSH (DO THIS BEFORE STEP 2!)
+--------------------------------------------------------
 
 1. SSH into your server:
-   ssh yourusername@yourserver.com
+   ssh site22570@ecrumedia.com -p6543
 
-2. Create directories:
-   mkdir -p ~/ecrumedia/backend
-   cd ~/ecrumedia
+2. Create directories and clone repo:
+   cd /home/site22570
+   mkdir -p temp
+   cd temp
+   git clone https://github.com/mosesellermann/platform.ecrumedia.com.git
+   cd platform.ecrumedia.com/backend
 
-3. Clone your repo:
-   git clone https://github.com/mosesellermann/platform.ecrumedia.com.git temp
-   cd temp/backend
+3. Install dependencies and build:
    npm install
    npm run build
 
-4. Copy built files:
-   cp -r dist ~/ecrumedia/backend/
-   cp package*.json ~/ecrumedia/backend/
-   cp -r prisma ~/ecrumedia/backend/
-   cd ~/ecrumedia/backend
+4. Create backend directory and copy built files:
+   cd /home/site22570
+   mkdir -p platform.ecrumedia.com/backend
+   cp -r temp/platform.ecrumedia.com/backend/dist platform.ecrumedia.com/backend/
+   cp temp/platform.ecrumedia.com/backend/package*.json platform.ecrumedia.com/backend/
+   cp -r temp/platform.ecrumedia.com/backend/prisma platform.ecrumedia.com/backend/
+
+5. Install production dependencies:
+   cd platform.ecrumedia.com/backend
    npm ci --omit=dev
 
-5. Create .env file:
-   nano ~/ecrumedia/backend/.env
+6. Create .env file:
+   nano .env
 
-Paste this (update with your actual values):
-   DATABASE_URL="mysql://USERNAME:PASSWORD@localhost:3306/DATABASE_NAME"
-   JWT_SECRET="your-super-secret-random-string-change-this"
+   Paste this:
+   DATABASE_URL="mysql://site22570_moses:LIni05IhzDlpz@localhost:3306/site22570_ecrumedia_platform"
+   JWT_SECRET="59bbfdeb40f027c06663244e3ef24f5d38d40f3a08907cfea6ca7203fa08bc10"
    JWT_EXPIRES_IN="7d"
-   PORT=40001
+   PORT=3146
    NODE_ENV="production"
-   FRONTEND_URL="https://yourdomain.com"
+   FRONTEND_URL="https://platform.ecrumedia.com"
 
-   Replace:
-   - USERNAME: your sPanel MySQL username
-   - PASSWORD: the password you set
-   - DATABASE_NAME: your database name
-   - PORT: the port sPanel assigned
-   - FRONTEND_URL: your actual domain
+   ⚠️ Replace:
+   - JWT_SECRET: Generate a secure random string
+   - PORT: Use the port sPanel assigned (usually 40001)
+   - FRONTEND_URL: Your actual domain
 
    Save: Ctrl+X, Y, Enter
 
-6. Run database migrations:
+7. Run database migrations:
    npx prisma generate
    npx prisma migrate deploy
 
-7. Start in sPanel:
-   Node.js Manager → Start ecrumedia-backend
+8. Clean up:
+   cd /home/site22570
+   rm -rf temp
+
+9. Verify files exist:
+   ls -la platform.ecrumedia.com/backend/D VIA 
+
+10. NOW go to sPanel Node.js Manager and Start the app
 
 
 STEP 5: DEPLOY FRONTEND
@@ -121,14 +128,14 @@ STEP 5: DEPLOY FRONTEND
    npm run build
 
 2. Upload to server:
-   scp -r dist/* yourusername@yourserver.com:~/public_html/
+   scp -P 6543 -r dist/* site22570@ecrumedia.com:~/platform.ecrumedia.com/
 
 
 STEP 6: CONFIGURE API PROXY
 ----------------------------
 
 Create .htaccess in ~/public_html:
-   cd ~/public_html
+   cd ~/platform.ecrumedia.com
    nano .htaccess
 
 Add:
@@ -141,16 +148,35 @@ Replace PORT with your Node.js port
 STEP 7: TEST
 ------------
 
-Visit: https://yourdomain.com
+Visit: https://platform.ecrumedia.com
 
 
-UPDATING:
----------
+UPDATING (Manual Method):
+-------------------------
 
 1. Build: npm run build && cd backend && npm run build
-2. Upload files
-3. SSH: cd ~/ecrumedia/backend && npx prisma migrate deploy
+2. Upload files: scp -P 6543 -r dist/* site22570@ecrumedia.com:~/platform.ecrumedia.com/
+3. SSH: cd ~/platform.ecrumedia.com/backend && npx prisma migrate deploy
 4. Restart in sPanel
+
+
+AUTOMATED DEPLOYMENT (Recommended):
+-----------------------------------
+
+⚠️ See AUTO_DEPLOY_GUIDE.md for one-time configuration!
+
+Once GitHub Secrets are configured, deployment is automatic:
+
+1. Make your code changes
+2. git add .
+3. git commit -m "Your changes"
+4. git push origin main
+5. ✅ Wait 3-5 minutes - automatically deployed!
+
+Monitor deployments at:
+https://github.com/mosesellermann/platform.ecrumedia.com/actions
+
+Time saved: 2 hours → 5 minutes per deployment!
 
 
 MYSQL DOCKER-COMPOSE (for local dev):

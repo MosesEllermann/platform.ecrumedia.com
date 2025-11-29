@@ -29,7 +29,7 @@ CREATE TABLE `users` (
 CREATE TABLE `sessions` (
     `id` VARCHAR(191) NOT NULL,
     `userId` VARCHAR(191) NOT NULL,
-    `token` VARCHAR(191) NOT NULL,
+    `token` VARCHAR(768) NOT NULL,
     `expiresAt` DATETIME(3) NOT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 

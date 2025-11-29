@@ -1,0 +1,27 @@
+---
+# sPanel Node.js Application Configuration
+# Application: eCru Media Platform Backend
+
+# Application settings
+app:
+  name: ecrumedia-backend
+  version: 1.0.0
+  
+# Node.js configuration
+node:
+  version: 20
+  
+# Application paths
+paths:
+  root: /home/site22570/platform.ecrumedia.com/backend
+  startup: dist/main.js
+  
+# Server configuration
+server:
+  port: 3146
+  mode: production
+  
+# Environment variables (sensitive values should be in .env file)
+env:
+  NODE_ENV: production
+  PORT: 3146
