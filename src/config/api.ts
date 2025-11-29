@@ -6,6 +6,11 @@ export const config = {
   apiEndpoint: `${API_URL}/api`,
 };
 
+export const apiUrl = (path: string) => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${config.apiEndpoint}${normalizedPath}`;
+};
+
 // Helper function to get auth headers
 export const getAuthHeaders = () => {
   const token = localStorage.getItem('token');

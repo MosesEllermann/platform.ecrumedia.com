@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 import AddClientModal from '../../components/common/AddClientModal';
 import QuotePDFPreview, { QuotePDFPreviewRef } from '../../components/common/QuotePDFPreview';
 import DatePicker from '../../components/form/date-picker';
+import { apiUrl } from '../../config/api';
 
 interface Client {
   id: string;
@@ -101,7 +102,7 @@ Seth-Moses Ellermann`);
 
   const fetchClients = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/clients', {
+      const response = await fetch(apiUrl('/clients'), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -118,7 +119,7 @@ Seth-Moses Ellermann`);
 
   const fetchNextQuoteNumber = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/quotes/next-number', {
+      const response = await fetch(apiUrl('/quotes/next-number'), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

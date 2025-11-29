@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
+import { apiUrl } from '../../config/api';
 
 const Login = () => {
   console.log('Login component mounted');
@@ -23,7 +24,7 @@ const Login = () => {
 
     try {
       console.log('Fetching login endpoint...');
-      const response = await fetch('http://localhost:3000/api/auth/login', {
+      const response = await fetch(apiUrl('/auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

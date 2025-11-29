@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
+import { apiUrl } from '../../config/api';
 
 interface InvoiceItem {
   id: string;
@@ -85,7 +86,7 @@ export default function Invoices() {
         queryParams.append('search', searchTerm);
       }
 
-      const response = await fetch(`http://localhost:3000/api/invoices?${queryParams}`, {
+  const response = await fetch(apiUrl(`/invoices?${queryParams.toString()}`), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -106,7 +107,7 @@ export default function Invoices() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/invoices/stats', {
+  const response = await fetch(apiUrl('/invoices/stats'), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -131,7 +132,7 @@ export default function Invoices() {
     if (!isAdmin) return;
     
     try {
-      const response = await fetch(`http://localhost:3000/api/invoices/${invoiceId}`, {
+  const response = await fetch(apiUrl(`/invoices/${invoiceId}`), {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -159,7 +160,7 @@ export default function Invoices() {
     if (!isAdmin) return;
     
     try {
-      const response = await fetch(`http://localhost:3000/api/invoices/${invoiceId}`, {
+  const response = await fetch(apiUrl(`/invoices/${invoiceId}`), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

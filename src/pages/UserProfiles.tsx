@@ -4,6 +4,7 @@ import PageMeta from "../components/common/PageMeta";
 import Input from "../components/form/input/InputField";
 import Label from "../components/form/Label";
 import { useAuth } from "../context/AuthContext";
+import { apiUrl } from "../config/api";
 
 const COUNTRIES = [
   { code: 'AT', name: 'Österreich' },
@@ -201,7 +202,7 @@ export default function UserProfiles() {
 
       console.log('📤 Sending profile update:', dataToSend);
 
-      const response = await fetch("http://localhost:3000/api/auth/profile", {
+  const response = await fetch(apiUrl('/auth/profile'), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

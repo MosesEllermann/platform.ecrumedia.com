@@ -5,6 +5,7 @@ import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
+import { apiUrl } from "../../config/api";
 
 export default function SignUpForm() {
   const navigate = useNavigate();
@@ -61,7 +62,7 @@ export default function SignUpForm() {
         payload.phone = formData.phone;
       }
 
-      const response = await fetch("http://localhost:3000/api/auth/register", {
+  const response = await fetch(apiUrl('/auth/register'), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

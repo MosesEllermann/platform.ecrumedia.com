@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
 import InvoicePDFPreview, { InvoicePDFPreviewRef } from '../../components/common/InvoicePDFPreview';
 import { generateInvoiceEmailTemplate } from '../../utils/emailTemplates';
+import { apiUrl } from '../../config/api';
 
 interface InvoiceItem {
   productName: string;
@@ -96,7 +97,7 @@ export default function ReviewAndSendInvoice() {
 
     try {
       // Create the invoice in the database
-      const createResponse = await fetch('http://localhost:3000/api/invoices', {
+  const createResponse = await fetch(apiUrl('/invoices'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -133,7 +134,7 @@ export default function ReviewAndSendInvoice() {
       // If email should be sent, call the send endpoint
       if (sendEmail) {
         try {
-          const sendResponse = await fetch(`http://localhost:3000/api/invoices/${createdInvoice.id}/send`, {
+          const sendResponse = await fetch(apiUrl(`/invoices/${createdInvoice.id}/send`), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

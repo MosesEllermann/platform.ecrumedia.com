@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { apiUrl } from '../../config/api';
 
 interface AddClientModalProps {
   isOpen: boolean;
@@ -86,7 +87,7 @@ export default function AddClientModal({ isOpen, onClose, onClientAdded }: AddCl
 
   const fetchNextNumber = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/clients/next-number', {
+  const response = await fetch(apiUrl('/clients/next-number'), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -133,7 +134,7 @@ export default function AddClientModal({ isOpen, onClose, onClientAdded }: AddCl
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3000/api/clients', {
+  const response = await fetch(apiUrl('/clients'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

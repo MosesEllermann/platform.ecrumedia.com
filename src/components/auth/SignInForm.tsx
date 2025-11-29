@@ -7,6 +7,7 @@ import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
 import Button from "../ui/button/Button";
 import { useAuth } from "../../context/AuthContext";
+import { apiUrl } from "../../config/api";
 
 export default function SignInForm() {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function SignInForm() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3000/api/auth/login", {
+  const response = await fetch(apiUrl('/auth/login'), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

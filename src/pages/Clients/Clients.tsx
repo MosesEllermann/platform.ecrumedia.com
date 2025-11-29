@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router';
 import Avatar from '../../components/ui/avatar/Avatar';
+import { apiUrl } from '../../config/api';
 
 interface Client {
   id: string;
@@ -36,7 +37,7 @@ export default function Clients() {
   const fetchClients = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3000/api/clients', {
+  const response = await fetch(apiUrl('/clients'), {
         headers: {
           Authorization: `Bearer ${token}`,
         },

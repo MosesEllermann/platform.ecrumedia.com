@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { apiUrl } from '../config/api';
 
 interface ClientProfile {
   id: string;
@@ -58,7 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const decodedToken = decodeURIComponent(loginToken);
           
           // Fetch user data with this token
-          const response = await fetch('http://localhost:3000/api/auth/me', {
+          const response = await fetch(apiUrl('/auth/me'), {
             headers: {
               'Authorization': `Bearer ${decodedToken}`,
             },
@@ -113,7 +114,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     try {
       // Call logout API
-      await fetch('http://localhost:3000/api/auth/logout', {
+      await fetch(apiUrl('/auth/logout'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -136,7 +137,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!token) return;
     
     try {
-      const response = await fetch('http://localhost:3000/api/auth/me', {
+      const response = await fetch(apiUrl('/auth/me'), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useAuth } from '../../context/AuthContext';
 import Avatar from '../../components/ui/avatar/Avatar';
+import { apiUrl } from '../../config/api';
 
 const COUNTRIES = [
   { code: 'AT', name: 'Österreich' },
@@ -97,7 +98,7 @@ export default function ClientDetail() {
   const fetchClient = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:3000/api/clients/${id}`, {
+  const response = await fetch(apiUrl(`/clients/${id}`), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -186,7 +187,7 @@ export default function ClientDetail() {
 
       console.log('📤 Sending update data:', updateData);
 
-      const response = await fetch(`http://localhost:3000/api/clients/${id}`, {
+  const response = await fetch(apiUrl(`/clients/${id}`), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -218,7 +219,7 @@ export default function ClientDetail() {
 
   const handleLoginAsClient = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/auth/login-as-client/${id}`, {
+  const response = await fetch(apiUrl(`/auth/login-as-client/${id}`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

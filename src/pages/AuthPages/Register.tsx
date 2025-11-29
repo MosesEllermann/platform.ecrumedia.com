@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { apiUrl } from '../../config/api';
 
 const Register = () => {
   const { t } = useTranslation();
@@ -37,7 +38,7 @@ const Register = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:3000/api/auth/register', {
+  const response = await fetch(apiUrl('/auth/register'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
