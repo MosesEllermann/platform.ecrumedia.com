@@ -100,15 +100,31 @@ jobs:
             
             echo "Updating API proxy rewrite rules..."
             cd "$APP_ROOT"
-            cat > .htaccess << EOF
+            cat > .htaccess << 'EOF'
             RewriteEngine On
-            RewriteRule ^api/(.*)$ http://127.0.0.1:$APP_PORT/api/\$1 [P,L]
+            
+            # Enable proxy and proxy_http modules (if available)
+            <IfModule mod_proxy.c>
+              <IfModule mod_proxy_http.c>
+                ProxyPreserveHost On
+                ProxyPass /api http://127.0.0.1:$APP_PORT/api
+                ProxyPassReverse /api http://127.0.0.1:$APP_PORT/api
+              </IfModule>
+            </IfModule>
 
             # Single Page Application fallback
             RewriteCond %{REQUEST_FILENAME} !-f
             RewriteCond %{REQUEST_FILENAME} !-d
+            RewriteCond %{REQUEST_URI} !^/api
             RewriteRule . /index.html [L]
             EOF
+            
+            # Replace $APP_PORT placeholder with actual port
+            sed -i "s/\$APP_PORT/$APP_PORT/g" .htaccess
+            
+            echo "Created .htaccess with proxy to port $APP_PORT"
+            cat .htaccess
+            
             cd "$BACKEND_DIR"
 
             echo "Restarting application..."
@@ -136,10 +152,41 @@ jobs:
             fi
             
             echo "Deployment completed!"
-            echo "Checking if backend is running on port $APP_PORT..."
+            echo ""
+            echo "=== DIAGNOSTICS ==="
+            echo "1. Checking if backend is running on port $APP_PORT..."
             sleep 2
-            if curl -s http://127.0.0.1:$APP_PORT/api/health > /dev/null 2>&1; then
-              echo "✅ Backend is responding!"
+            
+            # Test direct backend connection
+            if curl -s http://127.0.0.1:$APP_PORT/api > /dev/null 2>&1; then
+              echo "✅ Backend is responding at http://127.0.0.1:$APP_PORT/api"
+              curl -s http://127.0.0.1:$APP_PORT/api
             else
-              echo "⚠️ Backend may not be running. Check logs manually."
+              echo "❌ Backend NOT responding at http://127.0.0.1:$APP_PORT/api"
+              echo "   Checking if process is running..."
+              ps aux | grep "node.*dist/main.js" | grep -v grep || echo "   Process not found!"
             fi
+            
+            # Test what the public URL returns
+            echo ""
+            echo "2. Testing public API endpoint..."
+            PUBLIC_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://platform.ecrumedia.com/api 2>&1)
+            echo "   Public URL response code: $PUBLIC_RESPONSE"
+            
+            if [ "$PUBLIC_RESPONSE" = "200" ]; then
+              echo "   ✅ Public API is working!"
+            else
+              echo "   ❌ Public API returned: $PUBLIC_RESPONSE"
+              echo "   This means .htaccess proxy is NOT working"
+              echo ""
+              echo "3. Checking Apache modules..."
+              apachectl -M 2>/dev/null | grep -i proxy || echo "   Proxy modules not found or can't check"
+            fi
+            
+            echo ""
+            echo "4. Current .htaccess content:"
+            cat "$APP_ROOT/.htaccess"
+            
+            echo ""
+            echo "5. Backend logs (last 30 lines):"
+            tail -n 30 "$BACKEND_DIR/output.log" 2>/dev/null || echo "   No output.log found"
