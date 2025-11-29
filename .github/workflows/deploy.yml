@@ -72,7 +72,9 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           envs: DATABASE_URL,JWT_SECRET,APP_PORT
           script: |
-            cd /home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com/backend
+            APP_ROOT="/home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com"
+            BACKEND_DIR="$APP_ROOT/backend"
+            cd "$BACKEND_DIR"
             trap 'echo "SIGTERM received during restart (expected). Continuing and exiting cleanly."; exit 0' TERM
             
             # Create .env file with required variables
@@ -95,6 +97,19 @@ jobs:
             echo "Running database migrations..."
             npx prisma migrate deploy
             
+            echo "Updating API proxy rewrite rules..."
+            cd "$APP_ROOT"
+            cat > .htaccess << EOF
+            RewriteEngine On
+            RewriteRule ^api/(.*)$ http://127.0.0.1:$APP_PORT/api/\$1 [P,L]
+
+            # Single Page Application fallback
+            RewriteCond %{REQUEST_FILENAME} !-f
+            RewriteCond %{REQUEST_FILENAME} !-d
+            RewriteRule . /index.html [L]
+            EOF
+            cd "$BACKEND_DIR"
+
             echo "Restarting application..."
             # Method 1: Try sPanel-specific restart (if available)
             if [ -f ~/bin/restart-app ]; then
