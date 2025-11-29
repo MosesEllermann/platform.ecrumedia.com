@@ -32,6 +32,15 @@ jobs:
           npx prisma generate
           npm run build
 
+      - name: Debug - Check Server Connection
+        run: |
+          echo "Testing connection to server..."
+          echo "Host: ${{ secrets.SERVER_HOST }}"
+          echo "Port: ${{ secrets.SERVER_PORT }}"
+          echo "User: ${{ secrets.SERVER_USER }}"
+          ping -c 3 ${{ secrets.SERVER_HOST }} || echo "Ping failed, trying nslookup..."
+          nslookup ${{ secrets.SERVER_HOST }} || echo "DNS lookup failed"
+
       - name: Deploy Frontend to Server
         uses: appleboy/scp-action@v0.1.7
         with:
