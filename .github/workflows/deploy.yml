@@ -98,31 +98,18 @@ jobs:
             echo "Running database migrations..."
             npx prisma migrate deploy
             
-            echo "Updating API proxy rewrite rules..."
+            echo "Updating .htaccess for SPA routing..."
             cd "$APP_ROOT"
-            cat > .htaccess << 'EOF'
+            cat > .htaccess << 'HTACCESS_END'
             RewriteEngine On
             
-            # Enable proxy and proxy_http modules (if available)
-            <IfModule mod_proxy.c>
-              <IfModule mod_proxy_http.c>
-                ProxyPreserveHost On
-                ProxyPass /api http://127.0.0.1:$APP_PORT/api
-                ProxyPassReverse /api http://127.0.0.1:$APP_PORT/api
-              </IfModule>
-            </IfModule>
-
             # Single Page Application fallback
             RewriteCond %{REQUEST_FILENAME} !-f
             RewriteCond %{REQUEST_FILENAME} !-d
-            RewriteCond %{REQUEST_URI} !^/api
             RewriteRule . /index.html [L]
-            EOF
+            HTACCESS_END
             
-            # Replace $APP_PORT placeholder with actual port
-            sed -i "s/\$APP_PORT/$APP_PORT/g" .htaccess
-            
-            echo "Created .htaccess with proxy to port $APP_PORT"
+            echo "Created basic .htaccess:"
             cat .htaccess
             
             cd "$BACKEND_DIR"
