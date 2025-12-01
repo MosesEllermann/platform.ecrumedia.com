@@ -411,15 +411,22 @@ const InvoicePDFPreview = forwardRef<InvoicePDFPreviewRef, InvoicePDFPreviewProp
           if (hasDiscounts) {
             tableHeaders.push('Rabatt');
           }
-          tableHeaders.push('USt.', 'Gesamt');
+          if (!isReverseCharge) {
+            tableHeaders.push('USt.');
+          }
+          tableHeaders.push('Gesamt');
 
           // Calculate column widths
           // Give more space to description column by reducing other columns
           const colWidths = [10, 0, 14, 16, 20]; // 0 for auto-width description (reduced for wider description)
-          if (hasDiscounts) {
-            colWidths.push(14, 11, 22);
+          if (hasDiscounts && !isReverseCharge) {
+            colWidths.push(14, 11, 22); // Rabatt, USt., Gesamt
+          } else if (hasDiscounts && isReverseCharge) {
+            colWidths.push(14, 22); // Rabatt, Gesamt (no USt.)
+          } else if (!hasDiscounts && !isReverseCharge) {
+            colWidths.push(11, 22); // USt., Gesamt
           } else {
-            colWidths.push(11, 22);
+            colWidths.push(22); // Gesamt only (no discount, no USt.)
           }
           
           // Calculate description column width
@@ -454,10 +461,14 @@ const InvoicePDFPreview = forwardRef<InvoicePDFPreviewRef, InvoicePDFPreviewProp
             
             let xPos = margin;
             const headerAlignments = ['left', 'left', 'right', 'right', 'right'];
-            if (hasDiscounts) {
-              headerAlignments.push('right', 'right', 'right');
+            if (hasDiscounts && !isReverseCharge) {
+              headerAlignments.push('right', 'right', 'right'); // Rabatt, USt., Gesamt
+            } else if (hasDiscounts && isReverseCharge) {
+              headerAlignments.push('right', 'right'); // Rabatt, Gesamt
+            } else if (!hasDiscounts && !isReverseCharge) {
+              headerAlignments.push('right', 'right'); // USt., Gesamt
             } else {
-              headerAlignments.push('right', 'right');
+              headerAlignments.push('right'); // Gesamt only
             }
             
             tableHeaders.forEach((header, idx) => {
@@ -553,13 +564,16 @@ const InvoicePDFPreview = forwardRef<InvoicePDFPreviewRef, InvoicePDFPreviewProp
               xPos += colWidths[5];
             }
             
-            // Tax rate
-            addText(`${item.taxRate}%`, xPos + colWidths[hasDiscounts ? 6 : 5] - 2, yPos + 6, { align: 'right' });
-            xPos += colWidths[hasDiscounts ? 6 : 5];
+            // Tax rate (only if not reverse charge)
+            if (!isReverseCharge) {
+              addText(`${item.taxRate}%`, xPos + colWidths[hasDiscounts ? 6 : 5] - 2, yPos + 6, { align: 'right' });
+              xPos += colWidths[hasDiscounts ? 6 : 5];
+            }
             
             // Total (bold)
             setFont(pdf, 'bold');
-            addText(formatCurrency(item.netAmount), xPos + colWidths[hasDiscounts ? 7 : 6] - 2, yPos + 6, { align: 'right' });
+            const totalColIndex = hasDiscounts ? (isReverseCharge ? 6 : 7) : (isReverseCharge ? 5 : 6);
+            addText(formatCurrency(item.netAmount), xPos + colWidths[totalColIndex] - 2, yPos + 6, { align: 'right' });
             
             yPos += rowHeight;
           });
