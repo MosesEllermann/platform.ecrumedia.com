@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate, useLocation } from 'react-router';
+import { useNavigate, useLocation, useParams } from 'react-router';
 import AddClientModal from '../../components/common/AddClientModal';
 import InvoicePDFPreview, { InvoicePDFPreviewRef } from '../../components/common/InvoicePDFPreview';
 import DatePicker from '../../components/form/date-picker';
@@ -297,6 +297,7 @@ export default function CreateInvoice() {
   const { token, isAdmin, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { id: invoiceId } = useParams<{ id: string }>();
   const pdfRef = useRef<InvoicePDFPreviewRef>(null);
 
   // Redirect if not admin
@@ -309,8 +310,12 @@ export default function CreateInvoice() {
   const [clients, setClients] = useState<Client[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isSuccessExiting, setIsSuccessExiting] = useState(false);
+  const [isErrorExiting, setIsErrorExiting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showAddClientModal, setShowAddClientModal] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // Check if we're coming back from the review page with saved data
   const savedData = location.state as any;
@@ -341,12 +346,21 @@ Ich danke für Ihr Vertrauen.
 Es würde mich freuen auch in Zukunft wieder für Sie tätig zu sein.
 Seth-Moses Ellermann`);
 
+  // Load existing invoice if editing
   useEffect(() => {
-    // Always set current date on component mount
-    setInvoiceDate(currentDate);
+    if (invoiceId) {
+      fetchInvoice(invoiceId);
+    }
+  }, [invoiceId]);
+
+  useEffect(() => {
+    // Always set current date on component mount if not editing
+    if (!invoiceId) {
+      setInvoiceDate(currentDate);
+    }
     fetchClients();
-    // Only fetch next invoice number if we don't have saved data
-    if (!savedData?.invoiceNumber) {
+    // Only fetch next invoice number if we don't have saved data and not editing
+    if (!savedData?.invoiceNumber && !invoiceId) {
       fetchNextInvoiceNumber();
     }
   }, []);
@@ -371,6 +385,95 @@ Seth-Moses Ellermann`);
       }
     }
   }, [selectedClient, clients]);
+
+  const fetchInvoice = async (id: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(apiUrl(`/invoices/${id}`), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const invoice = await response.json();
+        
+        // Populate form fields
+        setSelectedClient(invoice.clientId || '');
+        setInvoiceNumber(invoice.invoiceNumber);
+        setInvoiceDate(invoice.issueDate ? new Date(invoice.issueDate).toISOString().split('T')[0] : currentDate);
+        setDueDate(invoice.dueDate ? new Date(invoice.dueDate).toISOString().split('T')[0] : '');
+        setServicePeriodStart(invoice.servicePeriodStart ? new Date(invoice.servicePeriodStart).toISOString().split('T')[0] : '');
+        setServicePeriodEnd(invoice.servicePeriodEnd ? new Date(invoice.servicePeriodEnd).toISOString().split('T')[0] : '');
+        setIsReverseCharge(invoice.isReverseCharge || false);
+        setGlobalDiscount(invoice.globalDiscount ? Number(invoice.globalDiscount) : 0);
+        setShowGlobalDiscount(invoice.globalDiscount && Number(invoice.globalDiscount) > 0);
+        
+        // Parse notes - split notes and conditions if they were combined
+        const notesText = invoice.notes || '';
+        const notesLines = notesText.split('\n\n');
+        if (notesLines.length > 1) {
+          setNotes(notesLines[0]);
+          setConditions(notesLines.slice(1).join('\n\n'));
+        } else {
+          setNotes(notesText);
+        }
+        
+        // Convert items
+        const invoiceItems: InvoiceItem[] = invoice.items.map((item: any) => {
+          const quantity = Number(item.quantity);
+          const unitPrice = Number(item.unitPrice);
+          const taxRate = item.taxRate ? Number(item.taxRate) : (invoice.isReverseCharge ? 0 : 20);
+          const discount = item.discount ? Number(item.discount) : 0;
+          
+          // Calculate amounts
+          const subtotal = quantity * unitPrice;
+          const discountAmount = subtotal * (discount / 100);
+          const netAmount = subtotal - discountAmount;
+          const taxAmount = netAmount * (taxRate / 100);
+          const grossAmount = netAmount + taxAmount;
+          const unitGrossPrice = unitPrice * (1 + taxRate / 100);
+          
+          return {
+            id: item.id || crypto.randomUUID(),
+            productName: item.productName || '',
+            description: item.description || '',
+            quantity,
+            unitName: item.unitName || 'Stunde(n)',
+            unitNetPrice: unitPrice,
+            unitGrossPrice,
+            taxRate,
+            discount,
+            netAmount,
+            grossAmount,
+          };
+        });
+        
+        setItems(invoiceItems);
+        setShowProductDiscount(invoiceItems.some(item => item.discount > 0));
+        
+        setSuccess('Rechnung erfolgreich geladen');
+        setIsSuccessExiting(false);
+        setTimeout(() => {
+          setIsSuccessExiting(true);
+          setTimeout(() => setSuccess(''), 500);
+        }, 4000);
+      } else {
+        setError('Rechnung nicht gefunden');
+        setIsErrorExiting(false);
+        setTimeout(() => {
+          setIsErrorExiting(true);
+          setTimeout(() => setError(''), 500);
+        }, 3000);
+      }
+    } catch (err) {
+      console.error('Failed to fetch invoice:', err);
+      setError('Fehler beim Laden der Rechnung');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchNextInvoiceNumber = async () => {
     try {
@@ -510,15 +613,23 @@ Seth-Moses Ellermann`);
     });
   };
 
-  const handleSaveAsDraft = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    setLoading(true);
+  const handleSaveAsDraft = async (e?: React.FormEvent, isAutoSave = false) => {
+    if (e) e.preventDefault();
+    
+    if (!isAutoSave) {
+      setError('');
+      setSuccess('');
+      setLoading(true);
+    } else {
+      setAutoSaving(true);
+    }
 
     try {
-      const response = await fetch(apiUrl('/invoices'), {
-        method: 'POST',
+      const url = invoiceId ? apiUrl(`/invoices/${invoiceId}`) : apiUrl('/invoices');
+      const method = invoiceId ? 'PATCH' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -551,20 +662,48 @@ Seth-Moses Ellermann`);
         throw new Error(errorData.message || 'Fehler beim Speichern der Rechnung');
       }
 
-      const createdInvoice = await response.json();
+      const savedInvoice = await response.json();
+      setLastSaved(new Date());
       
-      // Navigate back to invoice list with success message
-      navigate('/invoices', {
-        state: {
-          success: `Rechnung ${createdInvoice.invoiceNumber} wurde als Entwurf gespeichert!`,
-        },
-      });
+      if (!isAutoSave) {
+        setSuccess(`Rechnung ${savedInvoice.invoiceNumber} wurde gespeichert!`);
+        setIsSuccessExiting(false);
+        setTimeout(() => {
+          setIsSuccessExiting(true);
+          setTimeout(() => setSuccess(''), 500);
+        }, 3000);
+        
+        // Update URL if we just created a new invoice
+        if (!invoiceId && savedInvoice.id) {
+          navigate(`/invoices/edit/${savedInvoice.id}`, { replace: true });
+        }
+      }
     } catch (err: any) {
-      setError(err.message || 'Fehler beim Speichern der Rechnung');
+      if (!isAutoSave) {
+        setError(err.message || 'Fehler beim Speichern der Rechnung');
+        setTimeout(() => setError(''), 5000);
+      }
     } finally {
-      setLoading(false);
+      if (!isAutoSave) {
+        setLoading(false);
+      } else {
+        setAutoSaving(false);
+      }
     }
   };
+
+  // Auto-save effect (every 30 seconds)
+  useEffect(() => {
+    if (!invoiceId) return; // Only auto-save when editing existing invoice
+    
+    const autoSaveInterval = setInterval(() => {
+      if (items.length > 0 && selectedClient) {
+        handleSaveAsDraft(undefined, true);
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(autoSaveInterval);
+  }, [invoiceId, items, selectedClient, invoiceNumber, invoiceDate, dueDate, servicePeriodStart, servicePeriodEnd, isReverseCharge, notes, conditions, globalDiscount]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -578,33 +717,123 @@ Seth-Moses Ellermann`);
   return (
     <div className="space-y-4">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white/90">
-          Rechnung erstellen
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Neue Rechnung für einen Kunden erstellen
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white/90">
+            {invoiceId ? 'Rechnung bearbeiten' : 'Rechnung erstellen'}
+          </h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            {invoiceId ? `Rechnung ${invoiceNumber} bearbeiten` : 'Neue Rechnung für einen Kunden erstellen'}
+          </p>
+        </div>
+        {invoiceId && lastSaved && (
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            Zuletzt gespeichert: {lastSaved.toLocaleTimeString('de-DE')}
+            {autoSaving && <span className="ml-2 text-blue-600 dark:text-blue-400">Speichern...</span>}
+          </div>
+        )}
       </div>
 
-      {/* Success Message */}
+      {/* Success Message - Floating Toast */}
       {success && (
-        <div className="rounded-2xl border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20 p-4">
-          <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-sm text-green-800 dark:text-green-400">{success}</p>
+        <div 
+          className="fixed top-24 right-6 z-[9999] max-w-md transition-all duration-500 ease-out"
+          style={{
+            animation: isSuccessExiting ? 'slideOutToRight 0.5s ease-in forwards' : 'slideInFromRight 0.5s ease-out',
+          }}
+        >
+          <div className="rounded-2xl border border-green-200 bg-white dark:border-green-800 dark:bg-white/[0.03] shadow-sm overflow-hidden backdrop-blur-sm">
+            <div className="flex items-center gap-4 p-4">
+              <div className="flex-shrink-0">
+                <div className="w-7 h-7 rounded-full bg-green-500 dark:bg-green-600 flex items-center justify-center shadow-sm">
+                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white/90 leading-tight">{success}</p>
+              </div>
+            </div>
+            {/* Progress bar */}
+            <div className="h-1 bg-green-100 dark:bg-green-900/30">
+              <div 
+                className="h-full bg-green-500 dark:bg-green-600"
+                style={{
+                  animation: 'grow 4s linear forwards',
+                }}
+              />
+            </div>
           </div>
         </div>
       )}
 
-      {/* Error Message */}
+      {/* Error Message - Floating Toast */}
       {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20 p-4">
-          <p className="text-sm text-red-800 dark:text-red-400">{error}</p>
+        <div 
+          className="fixed top-24 right-6 z-[9999] max-w-md transition-all duration-500 ease-out"
+          style={{
+            animation: isErrorExiting ? 'slideOutToRight 0.5s ease-in forwards' : 'slideInFromRight 0.5s ease-out',
+          }}
+        >
+          <div className="rounded-2xl border border-red-200 bg-white dark:border-red-800 dark:bg-white/[0.03] shadow-sm overflow-hidden backdrop-blur-sm">
+            <div className="flex items-center gap-4 p-4">
+              <div className="flex-shrink-0">
+                <div className="w-7 h-7 rounded-full bg-red-500 dark:bg-red-600 flex items-center justify-center shadow-sm">
+                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white/90 leading-tight">{error}</p>
+              </div>
+            </div>
+            {/* Progress bar */}
+            <div className="h-1 bg-red-100 dark:bg-red-900/30">
+              <div 
+                className="h-full bg-red-500 dark:bg-red-600"
+                style={{
+                  animation: 'grow 3s linear forwards',
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes slideInFromRight {
+          from {
+            opacity: 0;
+            transform: translateX(100px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        @keyframes slideOutToRight {
+          from {
+            opacity: 1;
+            transform: translateX(0);
+          }
+          to {
+            opacity: 0;
+            transform: translateX(100px);
+          }
+        }
+        
+        @keyframes grow {
+          from {
+            width: 0%;
+          }
+          to {
+            width: 100%;
+          }
+        }
+      `}</style>
 
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">

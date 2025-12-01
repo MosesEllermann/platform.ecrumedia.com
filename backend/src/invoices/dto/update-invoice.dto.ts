@@ -29,6 +29,11 @@ export class UpdateInvoiceItemDto {
   @IsOptional()
   @Min(0)
   taxRate?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  discount?: number; // Item-level discount percentage
 }
 
 export class UpdateInvoiceDto {
@@ -71,6 +76,11 @@ export class UpdateInvoiceDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  globalDiscount?: number; // Global discount percentage
 
   @IsString()
   @IsOptional()

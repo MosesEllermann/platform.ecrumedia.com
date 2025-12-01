@@ -48,6 +48,8 @@ export default function CreateQuote() {
   const [clients, setClients] = useState<Client[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isSuccessExiting, setIsSuccessExiting] = useState(false);
+  const [isErrorExiting, setIsErrorExiting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showAddClientModal, setShowAddClientModal] = useState(false);
 
@@ -300,22 +302,106 @@ Seth-Moses Ellermann`);
         </p>
       </div>
 
+      {/* Success Message - Modern Animated Toast */}
       {success && (
-        <div className="rounded-2xl border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20 p-4">
-          <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-sm text-green-800 dark:text-green-400">{success}</p>
+        <div 
+          className="fixed top-24 right-6 z-[9999] max-w-md transition-all duration-500 ease-out"
+          style={{
+            animation: isSuccessExiting ? 'slideOutToRight 0.5s ease-in forwards' : 'slideInFromRight 0.5s ease-out',
+          }}
+        >
+          <div className="rounded-2xl border border-green-200 bg-white dark:border-green-800 dark:bg-white/[0.03] shadow-sm overflow-hidden backdrop-blur-sm">
+            <div className="flex items-center gap-4 p-4">
+              <div className="flex-shrink-0">
+                <div className="w-7 h-7 rounded-full bg-green-500 dark:bg-green-600 flex items-center justify-center shadow-sm">
+                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white/90 leading-tight">{success}</p>
+              </div>
+            </div>
+            {/* Progress bar */}
+            <div className="h-1 bg-green-100 dark:bg-green-900/30">
+              <div 
+                className="h-full bg-green-500 dark:bg-green-600"
+                style={{
+                  animation: 'grow 3s linear forwards',
+                }}
+              />
+            </div>
           </div>
         </div>
       )}
 
+      {/* Error Message - Modern Animated Toast */}
       {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20 p-4">
-          <p className="text-sm text-red-800 dark:text-red-400">{error}</p>
+        <div 
+          className="fixed top-24 right-6 z-[9999] max-w-md transition-all duration-500 ease-out"
+          style={{
+            animation: isErrorExiting ? 'slideOutToRight 0.5s ease-in forwards' : 'slideInFromRight 0.5s ease-out',
+          }}
+        >
+          <div className="rounded-2xl border border-red-200 bg-white dark:border-red-800 dark:bg-white/[0.03] shadow-sm overflow-hidden backdrop-blur-sm">
+            <div className="flex items-center gap-4 p-4">
+              <div className="flex-shrink-0">
+                <div className="w-7 h-7 rounded-full bg-red-500 dark:bg-red-600 flex items-center justify-center shadow-sm">
+                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white/90 leading-tight">{error}</p>
+              </div>
+            </div>
+            {/* Progress bar */}
+            <div className="h-1 bg-red-100 dark:bg-red-900/30">
+              <div 
+                className="h-full bg-red-500 dark:bg-red-600"
+                style={{
+                  animation: 'grow 3s linear forwards',
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes slideInFromRight {
+          from {
+            opacity: 0;
+            transform: translateX(100px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        @keyframes slideOutToRight {
+          from {
+            opacity: 1;
+            transform: translateX(0);
+          }
+          to {
+            opacity: 0;
+            transform: translateX(100px);
+          }
+        }
+        
+        @keyframes grow {
+          from {
+            width: 0%;
+          }
+          to {
+            width: 100%;
+          }
+        }
+      `}</style>
 
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">

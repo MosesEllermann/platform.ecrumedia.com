@@ -246,6 +246,7 @@ export class InvoicesService {
       notes: updateInvoiceDto.notes,
       pdfUrl: updateInvoiceDto.pdfUrl,
       paidAmount: updateInvoiceDto.paidAmount,
+      globalDiscount: updateInvoiceDto.globalDiscount !== undefined ? new Decimal(updateInvoiceDto.globalDiscount) : undefined,
     };
 
     // Convert date strings to Date objects
@@ -323,6 +324,7 @@ export class InvoicesService {
           unitName: item.unitName || null,
           unitPrice: new Decimal(item.unitPrice!.toFixed(2)),
           taxRate: item.taxRate !== undefined ? new Decimal(item.taxRate) : null,
+          discount: item.discount !== undefined ? new Decimal(item.discount) : new Decimal(0),
           total: new Decimal((item.quantity! * item.unitPrice!).toFixed(2)),
         })),
       };
