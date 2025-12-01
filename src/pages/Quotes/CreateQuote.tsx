@@ -302,7 +302,11 @@ Seth-Moses Ellermann`);
     } catch (err: any) {
       if (!isAutoSave) {
         setError(err.message || 'Fehler beim Speichern des Angebots');
-        setTimeout(() => setError(''), 5000);
+        setIsErrorExiting(false);
+        setTimeout(() => {
+          setIsErrorExiting(true);
+          setTimeout(() => setError(''), 500);
+        }, 4500);
       }
     } finally {
       if (!isAutoSave) {
