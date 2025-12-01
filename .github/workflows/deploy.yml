@@ -55,7 +55,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT }}
-          source: "backend/dist,backend/package.json,backend/package-lock.json,backend/prisma,backend/app.yml"
+          source: "backend/dist,backend/package.json,backend/package-lock.json,backend/prisma,backend/app.yml,backend/scripts"
           target: "/home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com/"
           strip_components: 0
 
@@ -66,12 +66,14 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           APP_PORT: ${{ secrets.APP_PORT }}
           FRONTEND_URL: ${{ env.FRONTEND_URL }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT }}
-          envs: DATABASE_URL,JWT_SECRET,APP_PORT,FRONTEND_URL
+          envs: DATABASE_URL,JWT_SECRET,APP_PORT,FRONTEND_URL,ADMIN_EMAIL,ADMIN_PASSWORD
           script: |
             APP_ROOT="/home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com"
             BACKEND_DIR="$APP_ROOT/backend"
@@ -97,6 +99,11 @@ jobs:
             
             echo "Running database migrations..."
             npx prisma migrate deploy
+            
+            echo "Creating/updating admin user..."
+            # Install ts-node temporarily to run the script
+            npm install --no-save ts-node typescript
+            ADMIN_EMAIL="$ADMIN_EMAIL" ADMIN_PASSWORD="$ADMIN_PASSWORD" npx ts-node scripts/create-admin.ts || echo "⚠️ Could not create admin user"
             
             echo "Updating .htaccess for SPA routing and API proxy..."
             cd "$APP_ROOT"
@@ -148,8 +155,10 @@ jobs:
             # Try PM2 if available
             elif command -v pm2 &> /dev/null; then
               echo "Using PM2..."
-              # Stop existing process if any
-              pm2 delete ecrumedia-backend 2>/dev/null || true
+              # Stop and delete ALL existing processes with this name
+              pm2 delete all 2>/dev/null || true
+              # Wait a moment for cleanup
+              sleep 1
               # Start with the correct path
               pm2 start "$MAIN_JS_PATH" --name ecrumedia-backend --time
               pm2 save
