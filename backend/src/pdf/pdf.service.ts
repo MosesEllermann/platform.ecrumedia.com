@@ -246,7 +246,7 @@ export class PdfService {
         yPos += 6;
         pdf.setFontSize(10);
       } else {
-        pdf.text('MwSt. (20%):', pageWidth - margin - 60, yPos);
+        pdf.text('MwSt.:', pageWidth - margin - 60, yPos);
         pdf.text(formatCurrency(options.taxAmount), pageWidth - margin - 2, yPos, { align: 'right' });
         yPos += 6;
       }
