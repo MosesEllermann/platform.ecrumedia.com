@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router';
 import AddClientModal from '../../components/common/AddClientModal';
@@ -52,6 +52,8 @@ export default function CreateQuote() {
   const [isErrorExiting, setIsErrorExiting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showAddClientModal, setShowAddClientModal] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // Always use current date for quote date
   const currentDate = new Date().toISOString().split('T')[0];
@@ -233,11 +235,16 @@ Seth-Moses Ellermann`);
     });
   };
 
-  const handleSaveAsDraft = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    setLoading(true);
+  const handleSaveAsDraft = useCallback(async (e?: React.FormEvent, isAutoSave = false) => {
+    if (e) e.preventDefault();
+    
+    if (!isAutoSave) {
+      setError('');
+      setSuccess('');
+      setLoading(true);
+    } else {
+      setAutoSaving(true);
+    }
 
     try {
       const response = await fetch(apiUrl('/quotes'), {
@@ -275,31 +282,67 @@ Seth-Moses Ellermann`);
       }
 
       const createdQuote = await response.json();
+      setLastSaved(new Date());
       
-      // Navigate back to quotes list with success message
-      navigate('/quotes', {
-        state: {
-          success: `Angebot ${createdQuote.quoteNumber} wurde als Entwurf gespeichert!`,
-        },
-      });
+      if (!isAutoSave) {
+        setSuccess(`Angebot ${createdQuote.quoteNumber} wurde gespeichert!`);
+        setIsSuccessExiting(false);
+        setTimeout(() => {
+          setIsSuccessExiting(true);
+          setTimeout(() => {
+            // Navigate back to quotes list with success message
+            navigate('/quotes', {
+              state: {
+                success: `Angebot ${createdQuote.quoteNumber} wurde als Entwurf gespeichert!`,
+              },
+            });
+          }, 500);
+        }, 3000);
+      }
     } catch (err: any) {
-      setError(err.message || 'Fehler beim Speichern des Angebots');
+      if (!isAutoSave) {
+        setError(err.message || 'Fehler beim Speichern des Angebots');
+        setTimeout(() => setError(''), 5000);
+      }
     } finally {
-      setLoading(false);
+      if (!isAutoSave) {
+        setLoading(false);
+      } else {
+        setAutoSaving(false);
+      }
     }
-  };
+  }, [token, selectedClient, quoteNumber, quoteDate, validUntil, servicePeriodStart, servicePeriodEnd, isReverseCharge, notes, conditions, globalDiscount, items, navigate]);
+
+  // Auto-save effect (every 15 seconds)
+  useEffect(() => {
+    const autoSaveInterval = setInterval(() => {
+      if (items.length > 0 && selectedClient) {
+        handleSaveAsDraft(undefined, true);
+      }
+    }, 15000); // 15 seconds
+
+    return () => clearInterval(autoSaveInterval);
+  }, [items, selectedClient, handleSaveAsDraft]);
 
   const selectedClientData = clients.find(c => c.id === selectedClient);
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white/90">
-          Angebot erstellen
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Neues Angebot für einen Kunden erstellen
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white/90">
+            Angebot erstellen
+          </h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Neues Angebot für einen Kunden erstellen
+          </p>
+        </div>
+        {lastSaved && (
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            Zuletzt gespeichert: {lastSaved.toLocaleTimeString('de-DE')}
+            {autoSaving && <span className="ml-2 text-blue-600 dark:text-blue-400">Speichern...</span>}
+          </div>
+        )}
       </div>
 
       {/* Success Message - Modern Animated Toast */}

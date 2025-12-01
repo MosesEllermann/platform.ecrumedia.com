@@ -214,7 +214,7 @@ const InvoicePDFPreview = forwardRef<InvoicePDFPreviewRef, InvoicePDFPreviewProp
             pdf.setFontSize(8);
             setFont(pdf, 'bold');
             pdf.setTextColor(31, 41, 55);
-            const footerCompanyName = user?.company || 'Seth-Moses Ellermann e.U. / Ecru Media';
+            const footerCompanyName = user?.company || 'Seth-Moses Ellermann e.U.';
             addText(footerCompanyName, margin, footerY + 5);
             
             setFont(pdf, 'normal');
@@ -242,7 +242,7 @@ const InvoicePDFPreview = forwardRef<InvoicePDFPreviewRef, InvoicePDFPreviewProp
             
             setFont(pdf, 'normal');
             pdf.setTextColor(...mediumGray);
-            const footerContactName = `${user?.firstName || 'Seth-Moses'} ${user?.lastName || 'Ellermann'}`;
+            const footerContactName = user?.company || 'Seth-Moses Ellermann e.U.';
             addText(footerContactName, pageWidth - margin, footerY + 9, { align: 'right' });
             addText('IBAN: DE37100110012623755446', pageWidth - margin, footerY + 12, { align: 'right' });
             addText('BIC: NTSBDEB1XXX', pageWidth - margin, footerY + 15, { align: 'right' });
@@ -298,7 +298,7 @@ const InvoicePDFPreview = forwardRef<InvoicePDFPreviewRef, InvoicePDFPreviewProp
           pdf.setFontSize(10);
           setFont(pdf, 'bold');
           pdf.setTextColor(...darkGray);
-          const senderName = user?.company || 'Ecru Media';
+          const senderName = user?.company || 'Seth-Moses Ellermann e.U.';
           addText(senderName, pageWidth - margin, yPos - 10, { align: 'right' });
           
           setFont(pdf, 'normal');

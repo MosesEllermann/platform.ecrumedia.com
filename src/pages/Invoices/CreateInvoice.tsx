@@ -692,18 +692,16 @@ Seth-Moses Ellermann`);
     }
   };
 
-  // Auto-save effect (every 30 seconds)
+  // Auto-save effect (every 15 seconds)
   useEffect(() => {
-    if (!invoiceId) return; // Only auto-save when editing existing invoice
-    
     const autoSaveInterval = setInterval(() => {
       if (items.length > 0 && selectedClient) {
         handleSaveAsDraft(undefined, true);
       }
-    }, 30000); // 30 seconds
+    }, 15000); // 15 seconds
 
     return () => clearInterval(autoSaveInterval);
-  }, [invoiceId, items, selectedClient, invoiceNumber, invoiceDate, dueDate, servicePeriodStart, servicePeriodEnd, isReverseCharge, notes, conditions, globalDiscount]);
+  }, [items, selectedClient, invoiceNumber, invoiceDate, dueDate, servicePeriodStart, servicePeriodEnd, isReverseCharge, notes, conditions, globalDiscount]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -726,7 +724,7 @@ Seth-Moses Ellermann`);
             {invoiceId ? `Rechnung ${invoiceNumber} bearbeiten` : 'Neue Rechnung für einen Kunden erstellen'}
           </p>
         </div>
-        {invoiceId && lastSaved && (
+        {lastSaved && (
           <div className="text-sm text-gray-500 dark:text-gray-400">
             Zuletzt gespeichert: {lastSaved.toLocaleTimeString('de-DE')}
             {autoSaving && <span className="ml-2 text-blue-600 dark:text-blue-400">Speichern...</span>}
