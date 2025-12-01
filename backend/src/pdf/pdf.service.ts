@@ -111,6 +111,7 @@ export class PdfService {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
+          timeZone: 'Europe/Vienna',
         });
       };
 
@@ -338,6 +339,7 @@ export class PdfService {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
+          timeZone: 'Europe/Vienna',
         });
       };
 

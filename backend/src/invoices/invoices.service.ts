@@ -46,9 +46,11 @@ export class InvoicesService {
   }
 
   // Calculate invoice totals
-  private calculateTotals(items: { quantity: number; unitPrice: number }[], taxRate: number) {
+  private calculateTotals(items: { quantity: number; unitPrice: number; discount?: number }[], taxRate: number) {
     const subtotal = items.reduce((sum, item) => {
-      return sum + item.quantity * item.unitPrice;
+      const lineTotal = item.quantity * item.unitPrice;
+      const discountAmount = item.discount ? (lineTotal * item.discount) / 100 : 0;
+      return sum + (lineTotal - discountAmount);
     }, 0);
 
     const taxAmount = (subtotal * taxRate) / 100;
