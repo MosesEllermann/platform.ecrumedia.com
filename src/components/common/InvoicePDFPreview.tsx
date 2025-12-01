@@ -105,7 +105,10 @@ const InvoicePDFPreview = forwardRef<InvoicePDFPreviewRef, InvoicePDFPreviewProp
     };
 
     const formatDate = (dateString: string) => {
-      return new Date(dateString).toLocaleDateString('de-DE', {
+      // Parse the date string as local date to avoid timezone issues
+      const [year, month, day] = dateString.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      return date.toLocaleDateString('de-DE', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -242,7 +245,9 @@ const InvoicePDFPreview = forwardRef<InvoicePDFPreviewRef, InvoicePDFPreviewProp
             
             setFont(pdf, 'normal');
             pdf.setTextColor(...mediumGray);
-            const footerContactName = user?.company || 'Seth-Moses Ellermann e.U.';
+            const footerContactName = user?.firstName && user?.lastName 
+              ? `${user.firstName} ${user.lastName}` 
+              : 'Seth-Moses Ellermann';
             addText(footerContactName, pageWidth - margin, footerY + 9, { align: 'right' });
             addText('IBAN: DE37100110012623755446', pageWidth - margin, footerY + 12, { align: 'right' });
             addText('BIC: NTSBDEB1XXX', pageWidth - margin, footerY + 15, { align: 'right' });

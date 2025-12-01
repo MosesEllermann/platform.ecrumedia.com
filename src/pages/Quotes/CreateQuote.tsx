@@ -99,6 +99,13 @@ Seth-Moses Ellermann`);
       const client = clients.find(c => c.id === selectedClient);
       if (client && client.countryCode !== 'AT' && client.type === 'COMPANY' && client.vatNumber) {
         setIsReverseCharge(true);
+        
+        // Automatically add reverse charge note if applicable
+        const reverseChargeNote = 'Die Umsatzsteuerschuld geht auf den Leistungsempfänger über\n(Reverse Charge System)';
+        // Only add if it's not already in the notes
+        if (!notes.includes('Reverse Charge') && !notes.includes('Umsatzsteuerschuld')) {
+          setNotes(notes ? `${notes}\n\n${reverseChargeNote}` : reverseChargeNote);
+        }
       } else {
         setIsReverseCharge(false);
       }

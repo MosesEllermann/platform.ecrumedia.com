@@ -382,6 +382,15 @@ Seth-Moses Ellermann`);
         // Reverse Charge applies if client is NOT from Austria
         const isReverseChargeApplicable = client.countryCode !== 'AT' && client.countryCode !== 'Österreich';
         setIsReverseCharge(isReverseChargeApplicable);
+        
+        // Automatically add reverse charge note if applicable
+        if (isReverseChargeApplicable) {
+          const reverseChargeNote = 'Die Umsatzsteuerschuld geht auf den Leistungsempfänger über\n(Reverse Charge System)';
+          // Only add if it's not already in the notes
+          if (!notes.includes('Reverse Charge') && !notes.includes('Umsatzsteuerschuld')) {
+            setNotes(notes ? `${notes}\n\n${reverseChargeNote}` : reverseChargeNote);
+          }
+        }
       }
     }
   }, [selectedClient, clients]);
