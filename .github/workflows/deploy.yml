@@ -35,6 +35,8 @@ jobs:
           npm ci
           npx prisma generate
           npm run build
+          # Compile admin script to JavaScript
+          npx tsc scripts/create-admin.ts --outDir dist/scripts --esModuleInterop --module nodenext --moduleResolution nodenext --target ES2023 --resolveJsonModule
 
       - name: Deploy Frontend to Server
         uses: appleboy/scp-action@v0.1.7
@@ -55,7 +57,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT }}
-          source: "backend/dist,backend/package.json,backend/package-lock.json,backend/prisma,backend/app.yml,backend/scripts"
+          source: "backend/dist,backend/package.json,backend/package-lock.json,backend/prisma,backend/app.yml"
           target: "/home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com/"
           strip_components: 0
 
@@ -101,9 +103,8 @@ jobs:
             npx prisma migrate deploy
             
             echo "Creating/updating admin user..."
-            # Install ts-node temporarily to run the script
-            npm install --no-save ts-node typescript
-            ADMIN_EMAIL="$ADMIN_EMAIL" ADMIN_PASSWORD="$ADMIN_PASSWORD" npx ts-node scripts/create-admin.ts || echo "⚠️ Could not create admin user"
+            # Run the compiled JavaScript version
+            ADMIN_EMAIL="$ADMIN_EMAIL" ADMIN_PASSWORD="$ADMIN_PASSWORD" node dist/scripts/create-admin.js || echo "⚠️ Could not create admin user"
             
             echo "Updating .htaccess for SPA routing and API proxy..."
             cd "$APP_ROOT"
