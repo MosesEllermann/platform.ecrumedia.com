@@ -36,7 +36,7 @@ jobs:
           npx prisma generate
           npm run build
           # Compile admin script to JavaScript
-          npx tsc scripts/create-admin.ts --outDir dist/scripts --esModuleInterop --module nodenext --moduleResolution nodenext --target ES2023 --resolveJsonModule
+          npx tsc -p tsconfig.scripts.json
 
       - name: Deploy Frontend to Server
         uses: appleboy/scp-action@v0.1.7
