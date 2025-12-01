@@ -464,7 +464,7 @@ export class InvoicesService {
       items: invoice.items.map((item) => ({
         productName: item.productName || undefined,
         description: item.description,
-        quantity: item.quantity,
+        quantity: Number(item.quantity),
         unitName: item.unitName || undefined,
         unitPrice: Number(item.unitPrice),
         taxRate: Number(item.taxRate),
