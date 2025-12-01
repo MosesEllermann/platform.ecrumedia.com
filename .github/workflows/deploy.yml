@@ -98,14 +98,19 @@ jobs:
             echo "Running database migrations..."
             npx prisma migrate deploy
             
-            echo "Updating .htaccess for SPA routing..."
+            echo "Updating .htaccess for SPA routing and API proxy..."
             cd "$APP_ROOT"
-            cat > .htaccess << 'HTACCESS_END'
+            cat > .htaccess << HTACCESS_END
             RewriteEngine On
             
-            # Single Page Application fallback
+            # Proxy API requests to backend
+            RewriteCond %{REQUEST_URI} ^/api
+            RewriteRule ^api/(.*)$ http://127.0.0.1:${APP_PORT}/api/\$1 [P,L]
+            
+            # Single Page Application fallback (only for non-API routes)
             RewriteCond %{REQUEST_FILENAME} !-f
             RewriteCond %{REQUEST_FILENAME} !-d
+            RewriteCond %{REQUEST_URI} !^/api
             RewriteRule . /index.html [L]
             HTACCESS_END
             
