@@ -27,6 +27,11 @@ export class CreateQuoteItemDto {
   @IsOptional()
   @Min(0)
   taxRate?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  discount?: number; // Item-level discount percentage
 }
 
 export class CreateQuoteDto {
@@ -73,6 +78,11 @@ export class CreateQuoteDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  globalDiscount?: number; // Global discount percentage
 
   @IsArray()
   @ValidateNested({ each: true })

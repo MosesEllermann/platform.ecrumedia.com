@@ -23,22 +23,15 @@ export default function Quotes() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    // Check for success message from location state
-    if (location.state?.success) {
-      setSuccess(location.state.success);
-      // Clear the state to prevent showing the message on page refresh
+    // Reload quotes when coming back from creating/editing
+    if (location.state) {
+      // Clear the state to prevent reloading on page refresh
       window.history.replaceState({}, document.title);
       
-      // Reload quotes when coming back with success message
+      // Reload quotes when coming back
       fetchQuotes();
-      
-      // Clear success message after 5 seconds
-      setTimeout(() => {
-        setSuccess('');
-      }, 5000);
     }
   }, [location]);
 
@@ -172,18 +165,6 @@ export default function Quotes() {
           </Link>
         )}
       </div>
-
-      {/* Success Message */}
-      {success && (
-        <div className="rounded-lg border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20 p-4">
-          <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-sm text-green-800 dark:text-green-400">{success}</p>
-          </div>
-        </div>
-      )}
 
       {/* Admin Info Banner */}
       {isAdmin && (

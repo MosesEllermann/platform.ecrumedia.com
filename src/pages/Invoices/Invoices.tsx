@@ -49,7 +49,6 @@ export default function Invoices() {
   const [stats, setStats] = useState<InvoiceStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [filter, setFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -57,20 +56,14 @@ export default function Invoices() {
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
-    // Check for success message from location state
-    if (location.state?.success) {
-      setSuccess(location.state.success);
-      // Clear the state to prevent showing the message on page refresh
+    // Reload invoices when coming back from creating/editing
+    if (location.state) {
+      // Clear the state to prevent reloading on page refresh
       window.history.replaceState({}, document.title);
       
-      // Reload invoices when coming back with success message
+      // Reload invoices when coming back
       fetchInvoices();
       fetchStats();
-      
-      // Clear success message after 5 seconds
-      setTimeout(() => {
-        setSuccess('');
-      }, 5000);
     }
   }, [location]);
 
@@ -147,13 +140,9 @@ export default function Invoices() {
         throw new Error('Failed to delete invoice');
       }
 
-      setSuccess('Rechnung erfolgreich gelöscht');
       setDeleteConfirmId(null);
       fetchInvoices();
       fetchStats();
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError('Fehler beim Löschen der Rechnung');
       setTimeout(() => setError(''), 3000);
@@ -262,18 +251,6 @@ export default function Invoices() {
             : 'Verwalten Sie Ihre Rechnungen und Zahlungen'}
         </p>
       </div>
-
-      {/* Success Message */}
-      {success && (
-        <div className="rounded-lg border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20 p-4">
-          <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-sm text-green-800 dark:text-green-400">{success}</p>
-          </div>
-        </div>
-      )}
 
       {/* Admin Info Banner */}
       {isAdmin && (

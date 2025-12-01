@@ -533,6 +533,7 @@ Seth-Moses Ellermann`);
           isReverseCharge,
           notes: `${notes}\n\n${conditions}`,
           status: 'DRAFT',
+          globalDiscount,
           items: items.map(item => ({
             productName: item.productName || undefined,
             description: item.description,
@@ -540,6 +541,7 @@ Seth-Moses Ellermann`);
             unitName: item.unitName || undefined,
             unitPrice: item.unitNetPrice,
             taxRate: item.taxRate || undefined,
+            discount: item.discount || 0,
           })),
         }),
       });

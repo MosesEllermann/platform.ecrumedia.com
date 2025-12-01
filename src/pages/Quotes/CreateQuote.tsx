@@ -238,7 +238,7 @@ Seth-Moses Ellermann`);
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3001/api/quotes', {
+      const response = await fetch(apiUrl('/quotes'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -254,6 +254,7 @@ Seth-Moses Ellermann`);
           isReverseCharge,
           notes: `${notes}\n\n${conditions}`,
           status: 'DRAFT',
+          globalDiscount,
           items: items.map(item => ({
             productName: item.productName || undefined,
             description: item.description,
@@ -261,6 +262,7 @@ Seth-Moses Ellermann`);
             unitName: item.unitName || undefined,
             unitPrice: item.unitPrice,
             taxRate: item.taxRate || undefined,
+            discount: item.discount || 0,
           })),
         }),
       });

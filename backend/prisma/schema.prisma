@@ -143,13 +143,14 @@ model Quote {
   taxRate       Decimal        @default(20) @db.Decimal(5, 2) // Austrian VAT 20%
   taxAmount     Decimal        @db.Decimal(10, 2)
   total         Decimal        @db.Decimal(10, 2)
+  globalDiscount Decimal?      @default(0) @db.Decimal(5, 2) // Global discount percentage
   isReverseCharge Boolean      @default(false) // Reverse Charge for EU companies outside Austria
   
   // File storage
   pdfUrl        String?
   
   // Additional info
-  notes         String?
+  notes         String?  @db.Text
   reverseChargeNote String?    // "Die Umsatzsteuerschuld geht auf den Leistungsempfänger über (Reverse Charge System)"
   
   // Conversion tracking
@@ -179,6 +180,7 @@ model QuoteItem {
   unitName    String?  // e.g., "Stunde(n)", "Tag(e)", "Stück"
   unitPrice   Decimal  @db.Decimal(10, 2)
   taxRate     Decimal? @db.Decimal(5, 2) // Item-specific tax rate
+  discount    Decimal? @default(0) @db.Decimal(5, 2) // Item-level discount percentage
   total       Decimal  @db.Decimal(10, 2)
   
   createdAt   DateTime @default(now())
@@ -217,6 +219,7 @@ model Invoice {
   taxRate       Decimal        @default(20) @db.Decimal(5, 2) // Austrian VAT 20%
   taxAmount     Decimal        @db.Decimal(10, 2)
   total         Decimal        @db.Decimal(10, 2)
+  globalDiscount Decimal?      @default(0) @db.Decimal(5, 2) // Global discount percentage
   isReverseCharge Boolean      @default(false) // Reverse Charge for EU companies outside Austria
   
   // Payment information
@@ -227,7 +230,7 @@ model Invoice {
   pdfUrl        String?
   
   // Additional info
-  notes         String?
+  notes         String?  @db.Text
   reverseChargeNote String?    // "Die Umsatzsteuerschuld geht auf den Leistungsempfänger über (Reverse Charge System)"
   
   // Timestamps
@@ -253,6 +256,7 @@ model InvoiceItem {
   unitName    String?  // e.g., "Stunde(n)", "Tag(e)", "Stück"
   unitPrice   Decimal  @db.Decimal(10, 2)
   taxRate     Decimal? @db.Decimal(5, 2) // Item-specific tax rate
+  discount    Decimal? @default(0) @db.Decimal(5, 2) // Item-level discount percentage
   total       Decimal  @db.Decimal(10, 2)
   
   createdAt   DateTime @default(now())
