@@ -56,8 +56,8 @@ jobs:
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT }}
           source: "backend/dist,backend/package.json,backend/package-lock.json,backend/prisma,backend/app.yml"
-          target: "/home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com/backend/"
-          strip_components: 1
+          target: "/home/${{ secrets.SERVER_USER }}/platform.ecrumedia.com/"
+          strip_components: 0
 
       - name: Update Backend and Restart via sPanel API
         uses: appleboy/ssh-action@v1.0.3
@@ -121,6 +121,21 @@ jobs:
 
             echo "Restarting application..."
             
+            # First, verify the main.js file exists
+            echo "Checking for main.js file..."
+            if [ -f "dist/main.js" ]; then
+              echo "✅ Found dist/main.js"
+              MAIN_JS_PATH="dist/main.js"
+            elif [ -f "dist/src/main.js" ]; then
+              echo "✅ Found dist/src/main.js"
+              MAIN_JS_PATH="dist/src/main.js"
+            else
+              echo "❌ main.js not found in expected locations!"
+              echo "Contents of dist/:"
+              ls -la dist/ || echo "dist/ directory not found!"
+              exit 1
+            fi
+            
             # Check if nodeapp command exists (sPanel CLI)
             if command -v nodeapp &> /dev/null; then
               echo "Using sPanel nodeapp CLI..."
@@ -133,21 +148,32 @@ jobs:
             # Try PM2 if available
             elif command -v pm2 &> /dev/null; then
               echo "Using PM2..."
-              pm2 restart ecrumedia-backend || pm2 start dist/main.js --name ecrumedia-backend
+              # Stop existing process if any
+              pm2 delete ecrumedia-backend 2>/dev/null || true
+              # Start with the correct path
+              pm2 start "$MAIN_JS_PATH" --name ecrumedia-backend --time
               pm2 save
             # Fallback: start with node directly in background
             else
               echo "Starting with node directly..."
-              pkill -f "node.*dist/main.js" || true
-              nohup node dist/main.js > output.log 2>&1 &
+              pkill -f "node.*main.js" || true
+              nohup node "$MAIN_JS_PATH" > output.log 2>&1 &
               echo "Backend started. Check output.log for logs."
             fi
             
             echo "Deployment completed!"
             echo ""
             echo "=== DIAGNOSTICS ==="
+            
+            # Check PM2 status if available
+            if command -v pm2 &> /dev/null; then
+              echo "PM2 Status:"
+              pm2 list
+              echo ""
+            fi
+            
             echo "1. Checking if backend is running on port $APP_PORT..."
-            sleep 2
+            sleep 3
             
             # Test direct backend connection
             if curl -s http://127.0.0.1:$APP_PORT/api > /dev/null 2>&1; then
@@ -156,7 +182,14 @@ jobs:
             else
               echo "❌ Backend NOT responding at http://127.0.0.1:$APP_PORT/api"
               echo "   Checking if process is running..."
-              ps aux | grep "node.*dist/main.js" | grep -v grep || echo "   Process not found!"
+              ps aux | grep "node.*main.js" | grep -v grep || echo "   Process not found!"
+              
+              # Check PM2 logs if available
+              if command -v pm2 &> /dev/null; then
+                echo ""
+                echo "   PM2 logs (last 20 lines):"
+                pm2 logs ecrumedia-backend --lines 20 --nostream 2>/dev/null || echo "   Could not retrieve PM2 logs"
+              fi
             fi
             
             # Test what the public URL returns
