@@ -48,6 +48,7 @@ export default function CreateQuote() {
   const [clients, setClients] = useState<Client[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
   const [showAddClientModal, setShowAddClientModal] = useState(false);
 
   // Always use current date for quote date
@@ -228,6 +229,60 @@ Seth-Moses Ellermann`);
         total: calculateTotal(),
       },
     });
+  };
+
+  const handleSaveAsDraft = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      const response = await fetch('http://localhost:3001/api/quotes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          clientId: selectedClient,
+          quoteNumber,
+          issueDate: quoteDate,
+          validUntil,
+          servicePeriodStart: servicePeriodStart || undefined,
+          servicePeriodEnd: servicePeriodEnd || undefined,
+          isReverseCharge,
+          notes: `${notes}\n\n${conditions}`,
+          status: 'DRAFT',
+          items: items.map(item => ({
+            productName: item.productName || undefined,
+            description: item.description,
+            quantity: item.quantity,
+            unitName: item.unitName || undefined,
+            unitPrice: item.unitPrice,
+            taxRate: item.taxRate || undefined,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Fehler beim Speichern des Angebots');
+      }
+
+      const createdQuote = await response.json();
+      
+      // Navigate back to quotes list with success message
+      navigate('/quotes', {
+        state: {
+          success: `Angebot ${createdQuote.quoteNumber} wurde als Entwurf gespeichert!`,
+        },
+      });
+    } catch (err: any) {
+      setError(err.message || 'Fehler beim Speichern des Angebots');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const selectedClientData = clients.find(c => c.id === selectedClient);
@@ -448,7 +503,8 @@ Seth-Moses Ellermann`);
                         value={item.quantity}
                         onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
                         placeholder="1"
-                        min="1"
+                        min="0.01"
+                        step="0.01"
                         required
                         className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none transition text-center"
                       />
@@ -705,7 +761,7 @@ Seth-Moses Ellermann`);
           <button
             type="button"
             onClick={() => pdfRef.current?.generatePDF()}
-            disabled={items.length === 0 || !selectedClient}
+            disabled={items.length === 0 || !selectedClient || loading}
             className="px-6 py-2.5 text-sm border border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:border-gray-400 disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:bg-transparent transition font-medium flex items-center gap-2"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -715,8 +771,21 @@ Seth-Moses Ellermann`);
             Vorschau
           </button>
           <button
+            type="button"
+            onClick={handleSaveAsDraft}
+            disabled={items.length === 0 || !selectedClient || loading}
+            className="px-6 py-2.5 text-sm border border-gray-600 text-gray-700 dark:border-gray-500 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 disabled:border-gray-400 disabled:text-gray-400 disabled:cursor-not-allowed disabled:hover:bg-transparent transition font-medium flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            {loading ? 'Speichern...' : 'Speichern'}
+          </button>
+          <button
             type="submit"
-            disabled={items.length === 0 || !selectedClient}
+            disabled={items.length === 0 || !selectedClient || loading}
             className="px-6 py-2.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition font-medium flex items-center gap-2"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

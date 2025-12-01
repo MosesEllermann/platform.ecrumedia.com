@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 import { UpdateQuoteDto } from './dto/update-quote.dto';
@@ -61,7 +61,7 @@ export class QuotesService {
     };
   }
 
-  async create(createQuoteDto: CreateQuoteDto) {
+  async create(createQuoteDto: CreateQuoteDto, adminUserId?: string) {
     // Use provided quote number or generate a new one
     const quoteNumber = createQuoteDto.quoteNumber || await this.generateQuoteNumber();
     const isReverseCharge = createQuoteDto.isReverseCharge || false;
@@ -74,11 +74,11 @@ export class QuotesService {
       ? "Die Umsatzsteuerschuld geht auf den Leistungsempfänger über (Reverse Charge System)"
       : null;
 
-    // Get userId from clientId if provided
-    let userId = createQuoteDto.userId;
+    // Get userId from clientId if provided, or use adminUserId as fallback
+    let userId = createQuoteDto.userId || adminUserId;
     const clientId = createQuoteDto.clientId;
 
-    if (clientId && !userId) {
+    if (clientId && !createQuoteDto.userId) {
       // Fetch client to get userId
       const client = await this.prisma.client.findUnique({
         where: { id: clientId },
@@ -87,14 +87,12 @@ export class QuotesService {
       
       if (client?.userId) {
         userId = client.userId;
-      } else {
-        // If client has no user account, we need a userId for the quote
-        throw new Error('Client has no associated user account');
       }
+      // If client has no user, fall back to adminUserId
     }
 
     if (!userId) {
-      throw new Error('Either userId or clientId with associated user is required');
+      throw new BadRequestException('Unable to determine user for quote');
     }
 
     const quote = await this.prisma.quote.create({
@@ -117,7 +115,7 @@ export class QuotesService {
         items: {
           create: createQuoteDto.items.map((item) => ({
             productName: item.productName || null,
-            description: item.description,
+            description: item.description || '',
             quantity: item.quantity,
             unitName: item.unitName || null,
             unitPrice: new Decimal(item.unitPrice.toFixed(2)),
@@ -148,12 +146,13 @@ export class QuotesService {
     const where: any = {};
 
     // If user is a client, only show their quotes
-    if (userRole === UserRole.CLIENT) {
-      where.userId = userId;
-    } else if (userId) {
-      // If userId is provided (for admins filtering), filter by it
+    if (userRole === UserRole.CLIENT && userId) {
       where.userId = userId;
     }
+
+    // Admin sees all quotes by default unless filtering by userId
+    // If specific userId is provided as a filter (admin filtering by specific user)
+    // Only apply this filter if explicitly requested, not by default
 
     // Filter by status if provided
     if (status) {
@@ -236,18 +235,101 @@ export class QuotesService {
     // First check if quote exists and user has access
     const quote = await this.findOne(id, userId, userRole);
 
+    // Only admins can update quotes
+    if (userRole !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only admins can update quotes');
+    }
+
+    // Only allow updating DRAFT quotes if items are being updated
+    if (updateQuoteDto.items && quote.status !== QuoteStatus.DRAFT) {
+      throw new ForbiddenException('Only draft quotes can have their items updated');
+    }
+
+    const updateData: any = {
+      clientId: updateQuoteDto.clientId,
+      quoteNumber: updateQuoteDto.quoteNumber,
+      status: updateQuoteDto.status,
+      isReverseCharge: updateQuoteDto.isReverseCharge,
+      notes: updateQuoteDto.notes,
+      pdfUrl: updateQuoteDto.pdfUrl,
+    };
+
+    // Convert date strings to Date objects
+    if (updateQuoteDto.issueDate) {
+      updateData.issueDate = new Date(updateQuoteDto.issueDate);
+    }
+    if (updateQuoteDto.validUntil) {
+      updateData.validUntil = new Date(updateQuoteDto.validUntil);
+    }
+    if (updateQuoteDto.servicePeriodStart) {
+      updateData.servicePeriodStart = new Date(updateQuoteDto.servicePeriodStart);
+    }
+    if (updateQuoteDto.servicePeriodEnd) {
+      updateData.servicePeriodEnd = new Date(updateQuoteDto.servicePeriodEnd);
+    }
+
+    // Handle items update if provided
+    if (updateQuoteDto.items && updateQuoteDto.items.length > 0) {
+      // Validate that all items have required fields
+      updateQuoteDto.items.forEach((item, index) => {
+        if (item.quantity === undefined || item.quantity === null) {
+          throw new BadRequestException(`Item ${index + 1} is missing quantity`);
+        }
+        if (item.unitPrice === undefined || item.unitPrice === null) {
+          throw new BadRequestException(`Item ${index + 1} is missing unit price`);
+        }
+      });
+
+      // Calculate totals from items
+      const taxRate = updateQuoteDto.isReverseCharge !== undefined 
+        ? (updateQuoteDto.isReverseCharge ? 0 : 20) 
+        : (quote.isReverseCharge ? 0 : 20);
+      
+      const isReverseCharge = updateQuoteDto.isReverseCharge !== undefined 
+        ? updateQuoteDto.isReverseCharge 
+        : quote.isReverseCharge;
+
+      const itemsForCalculation = updateQuoteDto.items.map(item => ({
+        quantity: item.quantity!,
+        unitPrice: item.unitPrice!,
+      }));
+
+      const totals = this.calculateTotals(itemsForCalculation, taxRate);
+
+      updateData.subtotal = totals.subtotal;
+      updateData.taxRate = new Decimal(taxRate);
+      updateData.taxAmount = totals.taxAmount;
+      updateData.total = totals.total;
+      updateData.isReverseCharge = isReverseCharge;
+
+      // Delete existing items and create new ones
+      await this.prisma.quoteItem.deleteMany({
+        where: { quoteId: id },
+      });
+
+      updateData.items = {
+        create: updateQuoteDto.items.map((item) => ({
+          productName: item.productName || null,
+          description: item.description || '',
+          quantity: item.quantity!,
+          unitName: item.unitName || null,
+          unitPrice: new Decimal(item.unitPrice!.toFixed(2)),
+          taxRate: item.taxRate !== undefined ? new Decimal(item.taxRate) : null,
+          total: new Decimal((item.quantity! * item.unitPrice!).toFixed(2)),
+        })),
+      };
+    }
+
+    // Remove undefined values
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
+
     const updatedQuote = await this.prisma.quote.update({
       where: { id },
-      data: {
-        validUntil: updateQuoteDto.validUntil ? new Date(updateQuoteDto.validUntil) : undefined,
-        servicePeriodStart: updateQuoteDto.servicePeriodStart ? new Date(updateQuoteDto.servicePeriodStart) : undefined,
-        servicePeriodEnd: updateQuoteDto.servicePeriodEnd ? new Date(updateQuoteDto.servicePeriodEnd) : undefined,
-        status: updateQuoteDto.status,
-        taxRate: updateQuoteDto.taxRate !== undefined ? new Decimal(updateQuoteDto.taxRate) : undefined,
-        isReverseCharge: updateQuoteDto.isReverseCharge,
-        notes: updateQuoteDto.notes,
-        pdfUrl: updateQuoteDto.pdfUrl,
-      },
+      data: updateData,
       include: {
         items: true,
         client: true,

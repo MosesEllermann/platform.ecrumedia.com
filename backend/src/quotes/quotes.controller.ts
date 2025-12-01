@@ -26,8 +26,9 @@ export class QuotesController {
 
   @Post()
   @Roles(UserRole.ADMIN)
-  create(@Body() createQuoteDto: CreateQuoteDto) {
-    return this.quotesService.create(createQuoteDto);
+  create(@Body() createQuoteDto: CreateQuoteDto, @Request() req) {
+    const user = req.user;
+    return this.quotesService.create(createQuoteDto, user.id);
   }
 
   @Get()

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 
 interface Quote {
   id: string;
@@ -18,10 +18,29 @@ interface Quote {
 
 export default function Quotes() {
   const { token, isAdmin } = useAuth();
+  const location = useLocation();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [success, setSuccess] = useState('');
+
+  useEffect(() => {
+    // Check for success message from location state
+    if (location.state?.success) {
+      setSuccess(location.state.success);
+      // Clear the state to prevent showing the message on page refresh
+      window.history.replaceState({}, document.title);
+      
+      // Reload quotes when coming back with success message
+      fetchQuotes();
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setSuccess('');
+      }, 5000);
+    }
+  }, [location]);
 
   useEffect(() => {
     fetchQuotes();
@@ -153,6 +172,18 @@ export default function Quotes() {
           </Link>
         )}
       </div>
+
+      {/* Success Message */}
+      {success && (
+        <div className="rounded-lg border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20 p-4">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-sm text-green-800 dark:text-green-400">{success}</p>
+          </div>
+        </div>
+      )}
 
       {/* Admin Info Banner */}
       {isAdmin && (
@@ -287,14 +318,27 @@ export default function Quotes() {
                     </td>
                     {isAdmin && (
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {quote.status !== 'CONVERTED' && (
-                          <button
-                            onClick={() => handleConvertToInvoice(quote.id)}
-                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition"
-                          >
-                            In Rechnung umwandeln
-                          </button>
-                        )}
+                        <div className="flex justify-end items-center gap-2">
+                          {quote.status === 'DRAFT' && (
+                            <Link
+                              to={`/quotes/edit/${quote.id}`}
+                              className="p-2 text-blue-600 hover:text-white dark:text-blue-400 hover:bg-blue-600 dark:hover:bg-blue-500 dark:hover:text-white rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                              title="Angebot bearbeiten"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </Link>
+                          )}
+                          {quote.status !== 'CONVERTED' && (
+                            <button
+                              onClick={() => handleConvertToInvoice(quote.id)}
+                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition text-sm"
+                            >
+                              In Rechnung umwandeln
+                            </button>
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>

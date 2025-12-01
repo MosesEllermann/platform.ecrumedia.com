@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
@@ -61,7 +61,7 @@ export class InvoicesService {
     };
   }
 
-  async create(createInvoiceDto: CreateInvoiceDto) {
+  async create(createInvoiceDto: CreateInvoiceDto, adminUserId?: string) {
     // Use provided invoice number or generate a new one
     const invoiceNumber = createInvoiceDto.invoiceNumber || await this.generateInvoiceNumber();
     const isReverseCharge = createInvoiceDto.isReverseCharge || false;
@@ -74,11 +74,11 @@ export class InvoicesService {
       ? "Die Umsatzsteuerschuld geht auf den Leistungsempfänger über (Reverse Charge System)"
       : null;
 
-    // Get userId from clientId if provided
-    let userId = createInvoiceDto.userId;
+    // Get userId from clientId if provided, or use adminUserId as fallback
+    let userId = createInvoiceDto.userId || adminUserId;
     const clientId = createInvoiceDto.clientId;
 
-    if (clientId && !userId) {
+    if (clientId && !createInvoiceDto.userId) {
       // Fetch client to get userId
       const client = await this.prisma.client.findUnique({
         where: { id: clientId },
@@ -87,15 +87,12 @@ export class InvoicesService {
       
       if (client?.userId) {
         userId = client.userId;
-      } else {
-        // If client has no user account, we need a userId for the invoice
-        // For now, throw an error - in future we could create invoices without users
-        throw new Error('Client has no associated user account');
       }
+      // If client has no user, fall back to adminUserId
     }
 
     if (!userId) {
-      throw new Error('Either userId or clientId with associated user is required');
+      throw new BadRequestException('Unable to determine user for invoice');
     }
 
     const invoice = await this.prisma.invoice.create({
@@ -118,7 +115,7 @@ export class InvoicesService {
         items: {
           create: createInvoiceDto.items.map((item) => ({
             productName: item.productName || null,
-            description: item.description,
+            description: item.description || '',
             quantity: item.quantity,
             unitName: item.unitName || null,
             unitPrice: new Decimal(item.unitPrice.toFixed(2)),
@@ -153,10 +150,9 @@ export class InvoicesService {
       where.userId = userId;
     }
 
-    // If specific userId is provided (admin filtering)
-    if (userId && userRole === UserRole.ADMIN) {
-      where.userId = userId;
-    }
+    // If specific userId is provided as a filter (admin filtering by specific user)
+    // Only apply this filter if explicitly requested, not by default
+    // Admin sees all invoices by default unless filtering by userId
 
     // Filter by status
     if (status) {
@@ -175,6 +171,7 @@ export class InvoicesService {
       where,
       include: {
         items: true,
+        client: true,
         user: {
           select: {
             id: true,
@@ -234,11 +231,25 @@ export class InvoicesService {
       throw new ForbiddenException('Only admins can update invoices');
     }
 
+    // Only allow updating DRAFT invoices if items are being updated
+    if (updateInvoiceDto.items && invoice.status !== InvoiceStatus.DRAFT) {
+      throw new ForbiddenException('Only draft invoices can have their items updated');
+    }
+
     const updateData: any = {
-      ...updateInvoiceDto,
+      clientId: updateInvoiceDto.clientId,
+      invoiceNumber: updateInvoiceDto.invoiceNumber,
+      status: updateInvoiceDto.status,
+      isReverseCharge: updateInvoiceDto.isReverseCharge,
+      notes: updateInvoiceDto.notes,
+      pdfUrl: updateInvoiceDto.pdfUrl,
+      paidAmount: updateInvoiceDto.paidAmount,
     };
 
     // Convert date strings to Date objects
+    if (updateInvoiceDto.issueDate) {
+      updateData.issueDate = new Date(updateInvoiceDto.issueDate);
+    }
     if (updateInvoiceDto.dueDate) {
       updateData.dueDate = new Date(updateInvoiceDto.dueDate);
     }
@@ -258,6 +269,70 @@ export class InvoicesService {
       updateData.paidAmount = invoice.total;
     }
 
+    // Handle items update if provided
+    if (updateInvoiceDto.items && updateInvoiceDto.items.length > 0) {
+      // Validate that all items have required fields
+      updateInvoiceDto.items.forEach((item, index) => {
+        if (item.quantity === undefined || item.quantity === null) {
+          throw new BadRequestException(`Item ${index + 1} is missing quantity`);
+        }
+        if (item.unitPrice === undefined || item.unitPrice === null) {
+          throw new BadRequestException(`Item ${index + 1} is missing unit price`);
+        }
+      });
+
+      // Calculate totals from items
+      const taxRate = updateInvoiceDto.isReverseCharge !== undefined 
+        ? (updateInvoiceDto.isReverseCharge ? 0 : 20) 
+        : (invoice.isReverseCharge ? 0 : 20);
+      
+      const isReverseCharge = updateInvoiceDto.isReverseCharge !== undefined 
+        ? updateInvoiceDto.isReverseCharge 
+        : invoice.isReverseCharge;
+
+      const reverseChargeNote = isReverseCharge 
+        ? 'Die Umsatzsteuerschuld geht auf den Leistungsempfänger über (Reverse Charge System)' 
+        : null;
+
+      const itemsForCalculation = updateInvoiceDto.items.map(item => ({
+        quantity: item.quantity!,
+        unitPrice: item.unitPrice!,
+      }));
+
+      const totals = this.calculateTotals(itemsForCalculation, taxRate);
+
+      updateData.subtotal = totals.subtotal;
+      updateData.taxRate = new Decimal(taxRate);
+      updateData.taxAmount = totals.taxAmount;
+      updateData.total = totals.total;
+      updateData.isReverseCharge = isReverseCharge;
+      updateData.reverseChargeNote = reverseChargeNote;
+
+      // Delete existing items and create new ones
+      await this.prisma.invoiceItem.deleteMany({
+        where: { invoiceId: id },
+      });
+
+      updateData.items = {
+        create: updateInvoiceDto.items.map((item) => ({
+          productName: item.productName || null,
+          description: item.description || '',
+          quantity: item.quantity!,
+          unitName: item.unitName || null,
+          unitPrice: new Decimal(item.unitPrice!.toFixed(2)),
+          taxRate: item.taxRate !== undefined ? new Decimal(item.taxRate) : null,
+          total: new Decimal((item.quantity! * item.unitPrice!).toFixed(2)),
+        })),
+      };
+    }
+
+    // Remove undefined values
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
+
     const updatedInvoice = await this.prisma.invoice.update({
       where: { id },
       data: updateData,
@@ -272,6 +347,7 @@ export class InvoicesService {
             company: true,
           },
         },
+        client: true,
       },
     });
 

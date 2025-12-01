@@ -8,11 +8,11 @@ export class CreateQuoteItemDto {
   productName?: string;
 
   @IsString()
-  @IsNotEmpty()
-  description: string;
+  @IsOptional()
+  description?: string;
 
   @IsNumber()
-  @Min(1)
+  @Min(0.01)
   quantity: number;
 
   @IsString()

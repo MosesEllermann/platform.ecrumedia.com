@@ -1,7 +1,49 @@
-import { IsString, IsDateString, IsNumber, IsOptional, IsEnum, IsBoolean } from 'class-validator';
+import { IsString, IsDateString, IsNumber, IsOptional, IsEnum, IsBoolean, IsArray, ValidateNested, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 import { InvoiceStatus } from '@prisma/client';
 
+export class UpdateInvoiceItemDto {
+  @IsString()
+  @IsOptional()
+  productName?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0.01)
+  quantity?: number;
+
+  @IsString()
+  @IsOptional()
+  unitName?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  unitPrice?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  taxRate?: number;
+}
+
 export class UpdateInvoiceDto {
+  @IsString()
+  @IsOptional()
+  clientId?: string;
+
+  @IsString()
+  @IsOptional()
+  invoiceNumber?: string;
+
+  @IsDateString()
+  @IsOptional()
+  issueDate?: string;
+
   @IsDateString()
   @IsOptional()
   dueDate?: string;
@@ -41,4 +83,10 @@ export class UpdateInvoiceDto {
   @IsDateString()
   @IsOptional()
   paidAt?: string;
+
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => UpdateInvoiceItemDto)
+  items?: UpdateInvoiceItemDto[];
 }

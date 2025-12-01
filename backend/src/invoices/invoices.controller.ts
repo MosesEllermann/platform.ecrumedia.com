@@ -26,8 +26,9 @@ export class InvoicesController {
 
   @Post()
   @Roles(UserRole.ADMIN)
-  create(@Body() createInvoiceDto: CreateInvoiceDto) {
-    return this.invoicesService.create(createInvoiceDto);
+  create(@Body() createInvoiceDto: CreateInvoiceDto, @Request() req) {
+    const user = req.user;
+    return this.invoicesService.create(createInvoiceDto, user.id);
   }
 
   @Get()

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation, Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { apiUrl } from '../../config/api';
@@ -62,6 +62,10 @@ export default function Invoices() {
       setSuccess(location.state.success);
       // Clear the state to prevent showing the message on page refresh
       window.history.replaceState({}, document.title);
+      
+      // Reload invoices when coming back with success message
+      fetchInvoices();
+      fetchStats();
       
       // Clear success message after 5 seconds
       setTimeout(() => {
@@ -495,6 +499,17 @@ export default function Invoices() {
                       <div className="flex justify-end items-center gap-2">
                         {isAdmin && (
                           <>
+                            {invoice.status === 'DRAFT' && (
+                              <Link
+                                to={`/invoices/edit/${invoice.id}`}
+                                className="p-2 text-blue-600 hover:text-white dark:text-blue-400 hover:bg-blue-600 dark:hover:bg-blue-500 dark:hover:text-white rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                                title="Rechnung bearbeiten"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </Link>
+                            )}
                             {deleteConfirmId === invoice.id ? (
                               <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-800">
                                 <span className="text-xs text-red-800 dark:text-red-300 font-medium whitespace-nowrap">Wirklich löschen?</span>
