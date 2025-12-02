@@ -435,10 +435,12 @@ Seth-Moses Ellermann`);
           const taxRate = item.taxRate ? Number(item.taxRate) : (invoice.isReverseCharge ? 0 : 20);
           const discount = item.discount ? Number(item.discount) : 0;
           
-          // Calculate amounts
+          // Calculate amounts with proper rounding
           const subtotal = quantity * unitPrice;
           const discountAmount = subtotal * (discount / 100);
-          const netAmount = subtotal - discountAmount;
+          const rawNetAmount = subtotal - discountAmount;
+          // Round to 2 decimal places to match displayed values
+          const netAmount = Math.round(rawNetAmount * 100) / 100;
           const taxAmount = netAmount * (taxRate / 100);
           const grossAmount = netAmount + taxAmount;
           const unitGrossPrice = unitPrice * (1 + taxRate / 100);
@@ -553,7 +555,9 @@ Seth-Moses Ellermann`);
     if (field === 'quantity' || field === 'unitNetPrice' || field === 'taxRate' || field === 'discount') {
       const item = newItems[index];
       const discountMultiplier = 1 - (item.discount / 100);
-      item.netAmount = item.quantity * item.unitNetPrice * discountMultiplier;
+      const rawNetAmount = item.quantity * item.unitNetPrice * discountMultiplier;
+      // Round to 2 decimal places to match displayed values
+      item.netAmount = Math.round(rawNetAmount * 100) / 100;
       item.unitGrossPrice = item.unitNetPrice * (1 + item.taxRate / 100);
       item.grossAmount = item.netAmount * (1 + item.taxRate / 100);
     }

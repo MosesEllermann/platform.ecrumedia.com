@@ -107,12 +107,13 @@ export class PdfService {
       };
 
       const formatDate = (date: Date) => {
-        return date.toLocaleDateString('de-DE', {
+        // Format the date in Vienna timezone using Intl.DateTimeFormat
+        return new Intl.DateTimeFormat('de-DE', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
           timeZone: 'Europe/Vienna',
-        });
+        }).format(date);
       };
 
       // Title
@@ -207,7 +208,12 @@ export class PdfService {
         const quantity = item.quantity;
         const unitName = item.unitName || '';
         const unitPrice = item.unitPrice;
-        const itemTotal = quantity * unitPrice;
+        const discount = item.discount || 0;
+        
+        // Calculate item total with discount applied
+        const lineTotal = quantity * unitPrice;
+        const discountAmount = (lineTotal * discount) / 100;
+        const itemTotal = lineTotal - discountAmount;
 
         // Description (with product name if available)
         const description = item.productName
@@ -224,8 +230,15 @@ export class PdfService {
         // Quantity
         pdf.text(`${quantity} ${unitName}`, pageWidth - margin - 60, yPos, { align: 'right' });
 
-        // Unit price
-        pdf.text(formatCurrency(unitPrice), pageWidth - margin - 40, yPos, { align: 'right' });
+        // Unit price (show with discount if applicable)
+        if (discount > 0) {
+          pdf.text(formatCurrency(unitPrice), pageWidth - margin - 40, yPos, { align: 'right' });
+          pdf.setFontSize(8);
+          pdf.text(`${discount.toFixed(2)}%`, pageWidth - margin - 40, yPos + 3, { align: 'right' });
+          pdf.setFontSize(10);
+        } else {
+          pdf.text(formatCurrency(unitPrice), pageWidth - margin - 40, yPos, { align: 'right' });
+        }
 
         // Total
         pdf.text(formatCurrency(itemTotal), pageWidth - margin - 2, yPos, { align: 'right' });
@@ -335,12 +348,13 @@ export class PdfService {
 
       const formatDate = (dateStr: string) => {
         const date = new Date(dateStr);
-        return date.toLocaleDateString('de-DE', {
+        // Format the date in Vienna timezone using Intl.DateTimeFormat
+        return new Intl.DateTimeFormat('de-DE', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
           timeZone: 'Europe/Vienna',
-        });
+        }).format(date);
       };
 
       // Title

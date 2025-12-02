@@ -176,7 +176,9 @@ Seth-Moses Ellermann`);
     if (field === 'quantity' || field === 'unitPrice' || field === 'discount') {
       const item = newItems[index];
       const discountMultiplier = 1 - (item.discount / 100);
-      item.netAmount = item.quantity * item.unitPrice * discountMultiplier;
+      const rawAmount = item.quantity * item.unitPrice * discountMultiplier;
+      // Round to 2 decimal places to match displayed values
+      item.netAmount = Math.round(rawAmount * 100) / 100;
       item.total = item.netAmount;
     }
     

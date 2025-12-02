@@ -46,10 +46,20 @@ export class QuotesService {
   }
 
   // Calculate quote totals
-  private calculateTotals(items: { quantity: number; unitPrice: number }[], taxRate: number) {
-    const subtotal = items.reduce((sum, item) => {
-      return sum + item.quantity * item.unitPrice;
+  private calculateTotals(items: { quantity: number; unitPrice: number; discount?: number }[], taxRate: number, globalDiscount: number = 0) {
+    // Round each line item to 2 decimals BEFORE summing to avoid floating point errors
+    const itemsSubtotal = items.reduce((sum, item) => {
+      const lineTotal = item.quantity * item.unitPrice;
+      const discountAmount = item.discount ? (lineTotal * item.discount) / 100 : 0;
+      const itemTotal = lineTotal - discountAmount;
+      // Round each item total to 2 decimal places
+      const roundedItemTotal = Math.round(itemTotal * 100) / 100;
+      return sum + roundedItemTotal;
     }, 0);
+
+    // Apply global discount to the subtotal (after line-item discounts)
+    const globalDiscountAmount = (itemsSubtotal * globalDiscount) / 100;
+    const subtotal = itemsSubtotal - globalDiscountAmount;
 
     const taxAmount = (subtotal * taxRate) / 100;
     const total = subtotal + taxAmount;
@@ -68,7 +78,8 @@ export class QuotesService {
     
     // Default to 20% Austrian VAT, but 0% if reverse charge applies
     const taxRate = isReverseCharge ? 0 : (createQuoteDto.taxRate || 20);
-    const totals = this.calculateTotals(createQuoteDto.items, taxRate);
+    const globalDiscount = createQuoteDto.globalDiscount || 0;
+    const totals = this.calculateTotals(createQuoteDto.items, taxRate, globalDiscount);
 
     const reverseChargeNote = isReverseCharge 
       ? "Die Umsatzsteuerschuld geht auf den Leistungsempfänger über (Reverse Charge System)"
@@ -114,16 +125,23 @@ export class QuotesService {
         reverseChargeNote,
         notes: createQuoteDto.notes,
         items: {
-          create: createQuoteDto.items.map((item) => ({
-            productName: item.productName || null,
-            description: item.description || '',
-            quantity: item.quantity,
-            unitName: item.unitName || null,
-            unitPrice: new Decimal(item.unitPrice.toFixed(2)),
-            taxRate: item.taxRate !== undefined ? new Decimal(item.taxRate) : null,
-            discount: item.discount !== undefined ? new Decimal(item.discount) : new Decimal(0),
-            total: new Decimal((item.quantity * item.unitPrice).toFixed(2)),
-          })),
+          create: createQuoteDto.items.map((item) => {
+            const lineTotal = item.quantity * item.unitPrice;
+            const discountAmount = item.discount ? (lineTotal * item.discount) / 100 : 0;
+            const itemTotal = lineTotal - discountAmount;
+            const roundedItemTotal = Math.round(itemTotal * 100) / 100;
+            
+            return {
+              productName: item.productName || null,
+              description: item.description || '',
+              quantity: item.quantity,
+              unitName: item.unitName || null,
+              unitPrice: new Decimal(item.unitPrice.toFixed(2)),
+              taxRate: item.taxRate !== undefined ? new Decimal(item.taxRate) : null,
+              discount: item.discount !== undefined ? new Decimal(item.discount) : new Decimal(0),
+              total: new Decimal(roundedItemTotal.toFixed(2)),
+            };
+          }),
         },
       },
       include: {
@@ -295,9 +313,14 @@ export class QuotesService {
       const itemsForCalculation = updateQuoteDto.items.map(item => ({
         quantity: item.quantity!,
         unitPrice: item.unitPrice!,
+        discount: item.discount,
       }));
 
-      const totals = this.calculateTotals(itemsForCalculation, taxRate);
+      const globalDiscount = updateQuoteDto.globalDiscount !== undefined 
+        ? updateQuoteDto.globalDiscount 
+        : Number(quote.globalDiscount);
+
+      const totals = this.calculateTotals(itemsForCalculation, taxRate, globalDiscount);
 
       updateData.subtotal = totals.subtotal;
       updateData.taxRate = new Decimal(taxRate);
@@ -311,16 +334,23 @@ export class QuotesService {
       });
 
       updateData.items = {
-        create: updateQuoteDto.items.map((item) => ({
-          productName: item.productName || null,
-          description: item.description || '',
-          quantity: item.quantity!,
-          unitName: item.unitName || null,
-          unitPrice: new Decimal(item.unitPrice!.toFixed(2)),
-          taxRate: item.taxRate !== undefined ? new Decimal(item.taxRate) : null,
-          discount: item.discount !== undefined ? new Decimal(item.discount) : new Decimal(0),
-          total: new Decimal((item.quantity! * item.unitPrice!).toFixed(2)),
-        })),
+        create: updateQuoteDto.items.map((item) => {
+          const lineTotal = item.quantity! * item.unitPrice!;
+          const discountAmount = item.discount ? (lineTotal * item.discount) / 100 : 0;
+          const itemTotal = lineTotal - discountAmount;
+          const roundedItemTotal = Math.round(itemTotal * 100) / 100;
+          
+          return {
+            productName: item.productName || null,
+            description: item.description || '',
+            quantity: item.quantity!,
+            unitName: item.unitName || null,
+            unitPrice: new Decimal(item.unitPrice!.toFixed(2)),
+            taxRate: item.taxRate !== undefined ? new Decimal(item.taxRate) : null,
+            discount: item.discount !== undefined ? new Decimal(item.discount) : new Decimal(0),
+            total: new Decimal(roundedItemTotal.toFixed(2)),
+          };
+        }),
       };
     }
 

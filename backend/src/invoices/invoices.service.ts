@@ -45,13 +45,34 @@ export class InvoicesService {
     return { nextInvoiceNumber: nextNumber };
   }
 
+  // Helper to parse date string in Vienna timezone
+  private parseDateInViennaTimezone(dateString: string): Date {
+    // If the date string is in ISO format (YYYY-MM-DD), we need to treat it as Vienna time, not UTC
+    // Parse the date components
+    const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
+    
+    // Create a date string that will be interpreted in Vienna timezone
+    // We use the Date constructor with separate components which creates a local time
+    const date = new Date(year, month - 1, day, 12, 0, 0); // Use noon to avoid DST issues
+    
+    return date;
+  }
+
   // Calculate invoice totals
-  private calculateTotals(items: { quantity: number; unitPrice: number; discount?: number }[], taxRate: number) {
-    const subtotal = items.reduce((sum, item) => {
+  private calculateTotals(items: { quantity: number; unitPrice: number; discount?: number }[], taxRate: number, globalDiscount: number = 0) {
+    // Round each line item to 2 decimals BEFORE summing to avoid floating point errors
+    const itemsSubtotal = items.reduce((sum, item) => {
       const lineTotal = item.quantity * item.unitPrice;
       const discountAmount = item.discount ? (lineTotal * item.discount) / 100 : 0;
-      return sum + (lineTotal - discountAmount);
+      const itemTotal = lineTotal - discountAmount;
+      // Round each item total to 2 decimal places
+      const roundedItemTotal = Math.round(itemTotal * 100) / 100;
+      return sum + roundedItemTotal;
     }, 0);
+
+    // Apply global discount to the subtotal (after line-item discounts)
+    const globalDiscountAmount = (itemsSubtotal * globalDiscount) / 100;
+    const subtotal = itemsSubtotal - globalDiscountAmount;
 
     const taxAmount = (subtotal * taxRate) / 100;
     const total = subtotal + taxAmount;
@@ -70,7 +91,8 @@ export class InvoicesService {
     
     // Default to 20% Austrian VAT, but 0% if reverse charge applies
     const taxRate = isReverseCharge ? 0 : (createInvoiceDto.taxRate || 20);
-    const totals = this.calculateTotals(createInvoiceDto.items, taxRate);
+    const globalDiscount = createInvoiceDto.globalDiscount || 0;
+    const totals = this.calculateTotals(createInvoiceDto.items, taxRate, globalDiscount);
 
     const reverseChargeNote = isReverseCharge 
       ? "Die Umsatzsteuerschuld geht auf den Leistungsempfänger über (Reverse Charge System)"
@@ -102,10 +124,10 @@ export class InvoicesService {
         invoiceNumber,
         userId,
         clientId,
-        issueDate: createInvoiceDto.issueDate ? new Date(createInvoiceDto.issueDate) : new Date(),
-        dueDate: new Date(createInvoiceDto.dueDate),
-        servicePeriodStart: createInvoiceDto.servicePeriodStart ? new Date(createInvoiceDto.servicePeriodStart) : null,
-        servicePeriodEnd: createInvoiceDto.servicePeriodEnd ? new Date(createInvoiceDto.servicePeriodEnd) : null,
+        issueDate: createInvoiceDto.issueDate ? this.parseDateInViennaTimezone(createInvoiceDto.issueDate) : new Date(),
+        dueDate: this.parseDateInViennaTimezone(createInvoiceDto.dueDate),
+        servicePeriodStart: createInvoiceDto.servicePeriodStart ? this.parseDateInViennaTimezone(createInvoiceDto.servicePeriodStart) : null,
+        servicePeriodEnd: createInvoiceDto.servicePeriodEnd ? this.parseDateInViennaTimezone(createInvoiceDto.servicePeriodEnd) : null,
         status: createInvoiceDto.status || InvoiceStatus.DRAFT,
         subtotal: totals.subtotal,
         taxRate: new Decimal(taxRate),
@@ -116,16 +138,22 @@ export class InvoicesService {
         reverseChargeNote,
         notes: createInvoiceDto.notes,
         items: {
-          create: createInvoiceDto.items.map((item) => ({
-            productName: item.productName || null,
-            description: item.description || '',
-            quantity: item.quantity,
-            unitName: item.unitName || null,
-            unitPrice: new Decimal(item.unitPrice.toFixed(2)),
-            taxRate: item.taxRate !== undefined ? new Decimal(item.taxRate) : null,
-            discount: item.discount !== undefined ? new Decimal(item.discount) : new Decimal(0),
-            total: new Decimal((item.quantity * item.unitPrice).toFixed(2)),
-          })),
+          create: createInvoiceDto.items.map((item) => {
+            const lineTotal = item.quantity * item.unitPrice;
+            const discountAmount = item.discount ? (lineTotal * item.discount) / 100 : 0;
+            const itemTotal = lineTotal - discountAmount;
+            
+            return {
+              productName: item.productName || null,
+              description: item.description || '',
+              quantity: item.quantity,
+              unitName: item.unitName || null,
+              unitPrice: new Decimal(item.unitPrice.toFixed(2)),
+              taxRate: item.taxRate !== undefined ? new Decimal(item.taxRate) : null,
+              discount: item.discount !== undefined ? new Decimal(item.discount) : new Decimal(0),
+              total: new Decimal(itemTotal.toFixed(2)),
+            };
+          }),
         },
       },
       include: {
@@ -253,19 +281,19 @@ export class InvoicesService {
 
     // Convert date strings to Date objects
     if (updateInvoiceDto.issueDate) {
-      updateData.issueDate = new Date(updateInvoiceDto.issueDate);
+      updateData.issueDate = this.parseDateInViennaTimezone(updateInvoiceDto.issueDate);
     }
     if (updateInvoiceDto.dueDate) {
-      updateData.dueDate = new Date(updateInvoiceDto.dueDate);
+      updateData.dueDate = this.parseDateInViennaTimezone(updateInvoiceDto.dueDate);
     }
     if (updateInvoiceDto.paidAt) {
-      updateData.paidAt = new Date(updateInvoiceDto.paidAt);
+      updateData.paidAt = this.parseDateInViennaTimezone(updateInvoiceDto.paidAt);
     }
     if (updateInvoiceDto.servicePeriodStart) {
-      updateData.servicePeriodStart = new Date(updateInvoiceDto.servicePeriodStart);
+      updateData.servicePeriodStart = this.parseDateInViennaTimezone(updateInvoiceDto.servicePeriodStart);
     }
     if (updateInvoiceDto.servicePeriodEnd) {
-      updateData.servicePeriodEnd = new Date(updateInvoiceDto.servicePeriodEnd);
+      updateData.servicePeriodEnd = this.parseDateInViennaTimezone(updateInvoiceDto.servicePeriodEnd);
     }
 
     // If status is being set to PAID, record payment info
@@ -302,9 +330,14 @@ export class InvoicesService {
       const itemsForCalculation = updateInvoiceDto.items.map(item => ({
         quantity: item.quantity!,
         unitPrice: item.unitPrice!,
+        discount: item.discount,
       }));
 
-      const totals = this.calculateTotals(itemsForCalculation, taxRate);
+      const globalDiscount = updateInvoiceDto.globalDiscount !== undefined 
+        ? updateInvoiceDto.globalDiscount 
+        : Number(invoice.globalDiscount);
+
+      const totals = this.calculateTotals(itemsForCalculation, taxRate, globalDiscount);
 
       updateData.subtotal = totals.subtotal;
       updateData.taxRate = new Decimal(taxRate);
@@ -319,16 +352,22 @@ export class InvoicesService {
       });
 
       updateData.items = {
-        create: updateInvoiceDto.items.map((item) => ({
-          productName: item.productName || null,
-          description: item.description || '',
-          quantity: item.quantity!,
-          unitName: item.unitName || null,
-          unitPrice: new Decimal(item.unitPrice!.toFixed(2)),
-          taxRate: item.taxRate !== undefined ? new Decimal(item.taxRate) : null,
-          discount: item.discount !== undefined ? new Decimal(item.discount) : new Decimal(0),
-          total: new Decimal((item.quantity! * item.unitPrice!).toFixed(2)),
-        })),
+        create: updateInvoiceDto.items.map((item) => {
+          const lineTotal = item.quantity! * item.unitPrice!;
+          const discountAmount = item.discount ? (lineTotal * item.discount) / 100 : 0;
+          const itemTotal = lineTotal - discountAmount;
+          
+          return {
+            productName: item.productName || null,
+            description: item.description || '',
+            quantity: item.quantity!,
+            unitName: item.unitName || null,
+            unitPrice: new Decimal(item.unitPrice!.toFixed(2)),
+            taxRate: item.taxRate !== undefined ? new Decimal(item.taxRate) : null,
+            discount: item.discount !== undefined ? new Decimal(item.discount) : new Decimal(0),
+            total: new Decimal(itemTotal.toFixed(2)),
+          };
+        }),
       };
     }
 
@@ -470,6 +509,7 @@ export class InvoicesService {
         unitName: item.unitName || undefined,
         unitPrice: Number(item.unitPrice),
         taxRate: Number(item.taxRate),
+        discount: item.discount ? Number(item.discount) : undefined,
       })),
       isReverseCharge: invoice.isReverseCharge,
       notes: invoice.notes || undefined,

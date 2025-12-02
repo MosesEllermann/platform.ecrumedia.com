@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,187 +7,315 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User roles
+model User {
+  id             String          @id @default(cuid())
+  email          String          @unique
+  password       String
+  role           UserRole        @default(CLIENT)
+  firstName      String
+  lastName       String
+  company        String?
+  phone          String?
+  address        String?
+  postalCode     String?
+  city           String?
+  country        String          @default("Österreich")
+  profileImage   String?
+  vatNumber      String?
+  homepage       String?
+  isActive       Boolean         @default(true)
+  emailVerified  Boolean         @default(false)
+  lastLogin      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  auditLogs      AuditLog[]
+  client         Client?
+  domains        Domain[]
+  emailAccounts  EmailAccount[]
+  hostingPlans   HostingPlan[]
+  invoices       Invoice[]
+  quotes         Quote[]
+  sessions       Session[]
+  wordPressSites WordPressSite[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique @db.VarChar(768)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "sessions_userId_fkey")
+  @@map("sessions")
+}
+
+model Client {
+  id           String     @id @default(cuid())
+  clientNumber Int        @unique
+  type         ClientType @default(COMPANY)
+  name         String
+  vatNumber    String?
+  address      String?
+  countryCode  String     @default("AT")
+  phone        String?
+  email        String?
+  homepage     String?
+  fixedNote    String?    @db.Text
+  userId       String?    @unique
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  user         User?      @relation(fields: [userId], references: [id])
+  invoices     Invoice[]
+  quotes       Quote[]
+
+  @@map("clients")
+}
+
+model Quote {
+  id                   String      @id @default(cuid())
+  quoteNumber          String      @unique
+  userId               String
+  clientId             String?
+  issueDate            DateTime    @default(now())
+  validUntil           DateTime
+  status               QuoteStatus @default(DRAFT)
+  servicePeriodStart   DateTime?
+  servicePeriodEnd     DateTime?
+  subtotal             Decimal     @db.Decimal(10, 2)
+  taxRate              Decimal     @default(20.00) @db.Decimal(5, 2)
+  taxAmount            Decimal     @db.Decimal(10, 2)
+  total                Decimal     @db.Decimal(10, 2)
+  isReverseCharge      Boolean     @default(false)
+  pdfUrl               String?
+  notes                String?     @db.Text
+  reverseChargeNote    String?
+  convertedToInvoiceId String?
+  convertedAt          DateTime?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  globalDiscount       Decimal?    @default(0.00) @db.Decimal(5, 2)
+  items                QuoteItem[]
+  client               Client?     @relation(fields: [clientId], references: [id])
+  user                 User        @relation(fields: [userId], references: [id])
+
+  @@index([clientId], map: "quotes_clientId_fkey")
+  @@index([userId], map: "quotes_userId_fkey")
+  @@map("quotes")
+}
+
+model QuoteItem {
+  id          String   @id @default(cuid())
+  quoteId     String
+  productName String?
+  description String
+  quantity    Decimal  @default(1.000) @db.Decimal(10, 3)
+  unitName    String?
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  taxRate     Decimal? @db.Decimal(5, 2)
+  total       Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  discount    Decimal? @default(0.00) @db.Decimal(5, 2)
+  quote       Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId], map: "quote_items_quoteId_fkey")
+  @@map("quote_items")
+}
+
+model Invoice {
+  id                 String        @id @default(cuid())
+  invoiceNumber      String        @unique
+  userId             String
+  clientId           String?
+  issueDate          DateTime      @default(now())
+  dueDate            DateTime
+  status             InvoiceStatus @default(DRAFT)
+  servicePeriodStart DateTime?
+  servicePeriodEnd   DateTime?
+  subtotal           Decimal       @db.Decimal(10, 2)
+  taxRate            Decimal       @default(20.00) @db.Decimal(5, 2)
+  taxAmount          Decimal       @db.Decimal(10, 2)
+  total              Decimal       @db.Decimal(10, 2)
+  isReverseCharge    Boolean       @default(false)
+  paidAt             DateTime?
+  paidAmount         Decimal?      @db.Decimal(10, 2)
+  pdfUrl             String?
+  notes              String?       @db.Text
+  reverseChargeNote  String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  globalDiscount     Decimal?      @default(0.00) @db.Decimal(5, 2)
+  items              InvoiceItem[]
+  client             Client?       @relation(fields: [clientId], references: [id])
+  user               User          @relation(fields: [userId], references: [id])
+
+  @@index([clientId], map: "invoices_clientId_fkey")
+  @@index([userId], map: "invoices_userId_fkey")
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  productName String?
+  description String
+  quantity    Decimal  @default(1.000) @db.Decimal(10, 3)
+  unitName    String?
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  taxRate     Decimal? @db.Decimal(5, 2)
+  total       Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  discount    Decimal? @default(0.00) @db.Decimal(5, 2)
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId], map: "invoice_items_invoiceId_fkey")
+  @@map("invoice_items")
+}
+
+model WordPressSite {
+  id               String              @id @default(cuid())
+  userId           String
+  domain           String              @unique
+  siteUrl          String
+  adminUrl         String
+  status           WordPressSiteStatus @default(ACTIVE)
+  phpVersion       String              @default("8.3")
+  wordPressVersion String?
+  storageUsed      Int                 @default(0)
+  storageLimit     Int                 @default(5000)
+  databaseName     String
+  databaseUser     String
+  serverIp         String?
+  sslEnabled       Boolean             @default(false)
+  sslExpiresAt     DateTime?
+  lastBackup       DateTime?
+  backupEnabled    Boolean             @default(true)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  user             User                @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "wordpress_sites_userId_fkey")
+  @@map("wordpress_sites")
+}
+
+model HostingPlan {
+  id                String            @id @default(cuid())
+  userId            String
+  name              String
+  type              HostingPlanType
+  status            HostingPlanStatus @default(ACTIVE)
+  storageLimit      Int
+  bandwidthLimit    Int
+  databaseLimit     Int               @default(10)
+  emailAccountLimit Int               @default(50)
+  domainLimit       Int               @default(5)
+  storageUsed       Int               @default(0)
+  bandwidthUsed     Int               @default(0)
+  monthlyPrice      Decimal           @db.Decimal(10, 2)
+  billingCycle      Int               @default(1)
+  startDate         DateTime          @default(now())
+  renewalDate       DateTime
+  expiresAt         DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  user              User              @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "hosting_plans_userId_fkey")
+  @@map("hosting_plans")
+}
+
+model Domain {
+  id              String       @id @default(cuid())
+  userId          String
+  domainName      String       @unique
+  status          DomainStatus @default(ACTIVE)
+  registrar       String       @default("Hetzner")
+  registeredAt    DateTime
+  expiresAt       DateTime
+  autoRenew       Boolean      @default(true)
+  nameservers     String       @db.Text
+  whoisProtection Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  dnsRecords      DnsRecord[]
+  user            User         @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "domains_userId_fkey")
+  @@map("domains")
+}
+
+model DnsRecord {
+  id        String        @id @default(cuid())
+  domainId  String
+  type      DnsRecordType
+  name      String
+  value     String
+  ttl       Int           @default(3600)
+  priority  Int?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  domain    Domain        @relation(fields: [domainId], references: [id], onDelete: Cascade)
+
+  @@index([domainId], map: "dns_records_domainId_fkey")
+  @@map("dns_records")
+}
+
+model EmailAccount {
+  id               String             @id @default(cuid())
+  userId           String
+  email            String             @unique
+  password         String
+  status           EmailAccountStatus @default(ACTIVE)
+  quotaLimit       Int                @default(5000)
+  quotaUsed        Int                @default(0)
+  forwardTo        String?
+  autoresponder    Boolean            @default(false)
+  autoresponderMsg String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  user             User               @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "email_accounts_userId_fkey")
+  @@map("email_accounts")
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  userId     String
+  action     AuditAction
+  targetId   String?
+  targetType String?
+  details    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime    @default(now())
+  user       User        @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "audit_logs_userId_fkey")
+  @@map("audit_logs")
+}
+
 enum UserRole {
   ADMIN
   CLIENT
 }
 
-// User model - represents both clients and admins
-model User {
-  id                String   @id @default(cuid())
-  email             String   @unique
-  password          String
-  role              UserRole @default(CLIENT)
-  firstName         String
-  lastName          String
-  company           String?
-  phone             String?
-  address           String?
-  postalCode        String?
-  city              String?
-  country           String   @default("Österreich")
-  profileImage      String?  // URL or base64 encoded image
-  
-  // Company information (for admins as invoice issuer, for clients managed via Client model)
-  vatNumber         String?  // UID for invoices
-  homepage          String?  // Company website
-  
-  // Account status
-  isActive          Boolean  @default(true)
-  emailVerified     Boolean  @default(false)
-  lastLogin         DateTime?
-  
-  // Timestamps
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  // Relations
-  invoices          Invoice[]
-  quotes            Quote[]
-  wordPressSites    WordPressSite[]
-  hostingPlans      HostingPlan[]
-  domains           Domain[]
-  emailAccounts     EmailAccount[]
-  auditLogs         AuditLog[]
-  sessions          Session[]
-  client            Client?  // One-to-one with Client profile
-  
-  @@map("users")
-}
-
-// Session model for JWT token management
-model Session {
-  id            String   @id @default(cuid())
-  userId        String
-  token         String   @db.VarChar(768)
-  expiresAt     DateTime
-  createdAt     DateTime @default(now())
-  
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@unique([token])
-  @@map("sessions")
-}
-
-// Client type enum
 enum ClientType {
-  COMPANY    // Unternehmen
-  PRIVATE    // Privatperson
+  COMPANY
+  PRIVATE
 }
 
-// Client model - for invoice billing information
-model Client {
-  id            String      @id @default(cuid())
-  clientNumber  Int         @unique // Auto-incrementing, but manually overridable
-  type          ClientType  @default(COMPANY)
-  
-  // Basic information
-  name          String      // Company name or person name
-  vatNumber     String?     // UID - only for companies
-  
-  // Contact details
-  address       String?
-  countryCode   String      @default("AT") // ISO country code
-  phone         String?
-  email         String?
-  homepage      String?
-  
-  // Additional notes
-  fixedNote     String?     @db.Text
-  
-  // User account link (optional)
-  userId        String?     @unique
-  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  
-  // Relations
-  invoices      Invoice[]
-  quotes        Quote[]
-  
-  // Timestamps
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  @@map("clients")
-}
-
-// Quote model
 enum QuoteStatus {
   DRAFT
   SENT
   ACCEPTED
   DECLINED
-  CONVERTED   // Converted to invoice
+  CONVERTED
 }
 
-model Quote {
-  id            String         @id @default(cuid())
-  quoteNumber   String         @unique
-  userId        String         // Keep for backward compatibility
-  clientId      String?        // Reference to Client
-  
-  // Quote details
-  issueDate     DateTime       @default(now())
-  validUntil    DateTime       // Quote validity date
-  status        QuoteStatus    @default(DRAFT)
-  
-  // Service period (Leistungszeitraum)
-  servicePeriodStart DateTime?
-  servicePeriodEnd   DateTime?
-  
-  // Financial information
-  subtotal      Decimal        @db.Decimal(10, 2)
-  taxRate       Decimal        @default(20) @db.Decimal(5, 2) // Austrian VAT 20%
-  taxAmount     Decimal        @db.Decimal(10, 2)
-  total         Decimal        @db.Decimal(10, 2)
-  globalDiscount Decimal?      @default(0) @db.Decimal(5, 2) // Global discount percentage
-  isReverseCharge Boolean      @default(false) // Reverse Charge for EU companies outside Austria
-  
-  // File storage
-  pdfUrl        String?
-  
-  // Additional info
-  notes         String?  @db.Text
-  reverseChargeNote String?    // "Die Umsatzsteuerschuld geht auf den Leistungsempfänger über (Reverse Charge System)"
-  
-  // Conversion tracking
-  convertedToInvoiceId String?  // Reference to created invoice if converted
-  convertedAt   DateTime?
-  
-  // Timestamps
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  
-  // Relations
-  user          User           @relation(fields: [userId], references: [id])
-  client        Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  items         QuoteItem[]
-  
-  @@map("quotes")
-}
-
-// Quote items
-model QuoteItem {
-  id          String   @id @default(cuid())
-  quoteId     String
-  
-  productName String?  // Optional product/service name
-  description String
-  quantity    Decimal  @default(1) @db.Decimal(10, 3)
-  unitName    String?  // e.g., "Stunde(n)", "Tag(e)", "Stück"
-  unitPrice   Decimal  @db.Decimal(10, 2)
-  taxRate     Decimal? @db.Decimal(5, 2) // Item-specific tax rate
-  discount    Decimal? @default(0) @db.Decimal(5, 2) // Item-level discount percentage
-  total       Decimal  @db.Decimal(10, 2)
-  
-  createdAt   DateTime @default(now())
-  
-  quote       Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  
-  @@map("quote_items")
-}
-
-// Invoice model
 enum InvoiceStatus {
   DRAFT
   SENT
@@ -199,74 +324,6 @@ enum InvoiceStatus {
   CANCELLED
 }
 
-model Invoice {
-  id            String         @id @default(cuid())
-  invoiceNumber String         @unique
-  userId        String         // Keep for backward compatibility
-  clientId      String?        // New: reference to Client
-  
-  // Invoice details
-  issueDate     DateTime       @default(now())
-  dueDate       DateTime
-  status        InvoiceStatus  @default(DRAFT)
-  
-  // Service period (Leistungszeitraum)
-  servicePeriodStart DateTime?
-  servicePeriodEnd   DateTime?
-  
-  // Financial information
-  subtotal      Decimal        @db.Decimal(10, 2)
-  taxRate       Decimal        @default(20) @db.Decimal(5, 2) // Austrian VAT 20%
-  taxAmount     Decimal        @db.Decimal(10, 2)
-  total         Decimal        @db.Decimal(10, 2)
-  globalDiscount Decimal?      @default(0) @db.Decimal(5, 2) // Global discount percentage
-  isReverseCharge Boolean      @default(false) // Reverse Charge for EU companies outside Austria
-  
-  // Payment information
-  paidAt        DateTime?
-  paidAmount    Decimal?       @db.Decimal(10, 2)
-  
-  // File storage
-  pdfUrl        String?
-  
-  // Additional info
-  notes         String?  @db.Text
-  reverseChargeNote String?    // "Die Umsatzsteuerschuld geht auf den Leistungsempfänger über (Reverse Charge System)"
-  
-  // Timestamps
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  
-  // Relations
-  user          User           @relation(fields: [userId], references: [id])
-  client        Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  items         InvoiceItem[]
-  
-  @@map("invoices")
-}
-
-// Invoice items
-model InvoiceItem {
-  id          String   @id @default(cuid())
-  invoiceId   String
-  
-  productName String?  // Optional product/service name
-  description String
-  quantity    Decimal  @default(1) @db.Decimal(10, 3)
-  unitName    String?  // e.g., "Stunde(n)", "Tag(e)", "Stück"
-  unitPrice   Decimal  @db.Decimal(10, 2)
-  taxRate     Decimal? @db.Decimal(5, 2) // Item-specific tax rate
-  discount    Decimal? @default(0) @db.Decimal(5, 2) // Item-level discount percentage
-  total       Decimal  @db.Decimal(10, 2)
-  
-  createdAt   DateTime @default(now())
-  
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  
-  @@map("invoice_items")
-}
-
-// WordPress sites
 enum WordPressSiteStatus {
   ACTIVE
   SUSPENDED
@@ -274,46 +331,6 @@ enum WordPressSiteStatus {
   DELETED
 }
 
-model WordPressSite {
-  id              String              @id @default(cuid())
-  userId          String
-  
-  // Site details
-  domain          String              @unique
-  siteUrl         String
-  adminUrl        String
-  status          WordPressSiteStatus @default(ACTIVE)
-  
-  // Technical details
-  phpVersion      String              @default("8.3")
-  wordPressVersion String?
-  storageUsed     Int                 @default(0) // in MB
-  storageLimit    Int                 @default(5000) // in MB
-  
-  // Database info
-  databaseName    String
-  databaseUser    String
-  
-  // Server info
-  serverIp        String?
-  sslEnabled      Boolean             @default(false)
-  sslExpiresAt    DateTime?
-  
-  // Backup info
-  lastBackup      DateTime?
-  backupEnabled   Boolean             @default(true)
-  
-  // Timestamps
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  
-  // Relations
-  user            User                @relation(fields: [userId], references: [id])
-  
-  @@map("wordpress_sites")
-}
-
-// Hosting plans
 enum HostingPlanType {
   BASIC
   STANDARD
@@ -328,46 +345,6 @@ enum HostingPlanStatus {
   EXPIRED
 }
 
-model HostingPlan {
-  id                String             @id @default(cuid())
-  userId            String
-  
-  // Plan details
-  name              String
-  type              HostingPlanType
-  status            HostingPlanStatus  @default(ACTIVE)
-  
-  // Resources
-  storageLimit      Int                // in MB
-  bandwidthLimit    Int                // in GB per month
-  databaseLimit     Int                @default(10)
-  emailAccountLimit Int                @default(50)
-  domainLimit       Int                @default(5)
-  
-  // Current usage
-  storageUsed       Int                @default(0)
-  bandwidthUsed     Int                @default(0)
-  
-  // Billing
-  monthlyPrice      Decimal            @db.Decimal(10, 2)
-  billingCycle      Int                @default(1) // in months
-  
-  // Dates
-  startDate         DateTime           @default(now())
-  renewalDate       DateTime
-  expiresAt         DateTime?
-  
-  // Timestamps
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  
-  // Relations
-  user              User               @relation(fields: [userId], references: [id])
-  
-  @@map("hosting_plans")
-}
-
-// Domains
 enum DomainStatus {
   ACTIVE
   PENDING_TRANSFER
@@ -376,38 +353,6 @@ enum DomainStatus {
   CANCELLED
 }
 
-model Domain {
-  id              String        @id @default(cuid())
-  userId          String
-  
-  // Domain details
-  domainName      String        @unique
-  status          DomainStatus  @default(ACTIVE)
-  
-  // Registration info
-  registrar       String        @default("Hetzner")
-  registeredAt    DateTime
-  expiresAt       DateTime
-  autoRenew       Boolean       @default(true)
-  
-  // DNS info - stored as JSON for MySQL compatibility
-  nameservers     String        @db.Text
-  
-  // WHOIS protection
-  whoisProtection Boolean       @default(false)
-  
-  // Timestamps
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
-  // Relations
-  user            User          @relation(fields: [userId], references: [id])
-  dnsRecords      DnsRecord[]
-  
-  @@map("domains")
-}
-
-// DNS records
 enum DnsRecordType {
   A
   AAAA
@@ -418,62 +363,12 @@ enum DnsRecordType {
   NS
 }
 
-model DnsRecord {
-  id          String        @id @default(cuid())
-  domainId    String
-  
-  type        DnsRecordType
-  name        String
-  value       String
-  ttl         Int           @default(3600)
-  priority    Int?          // for MX records
-  
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  
-  domain      Domain        @relation(fields: [domainId], references: [id], onDelete: Cascade)
-  
-  @@map("dns_records")
-}
-
-// Email accounts
 enum EmailAccountStatus {
   ACTIVE
   SUSPENDED
   DELETED
 }
 
-model EmailAccount {
-  id              String             @id @default(cuid())
-  userId          String
-  
-  // Email details
-  email           String             @unique
-  password        String             // encrypted
-  status          EmailAccountStatus @default(ACTIVE)
-  
-  // Quota
-  quotaLimit      Int                @default(5000) // in MB
-  quotaUsed       Int                @default(0)
-  
-  // Forwarding
-  forwardTo       String?
-  
-  // Autoresponder
-  autoresponder   Boolean            @default(false)
-  autoresponderMsg String?
-  
-  // Timestamps
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  
-  // Relations
-  user            User               @relation(fields: [userId], references: [id])
-  
-  @@map("email_accounts")
-}
-
-// Audit logs - for tracking admin actions (especially "Als Kunde einloggen")
 enum AuditAction {
   LOGIN
   LOGOUT
@@ -495,22 +390,3 @@ enum AuditAction {
   DELETE_EMAIL
   UPDATE_HOSTING_PLAN
 }
-
-model AuditLog {
-  id          String      @id @default(cuid())
-  userId      String
-  
-  action      AuditAction
-  targetId    String?     // ID of the affected resource
-  targetType  String?     // Type of the affected resource (User, Invoice, etc.)
-  details     Json?       // Additional details about the action
-  ipAddress   String?
-  userAgent   String?
-  
-  createdAt   DateTime    @default(now())
-  
-  user        User        @relation(fields: [userId], references: [id])
-  
-  @@map("audit_logs")
-}
-
