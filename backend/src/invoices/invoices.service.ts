@@ -47,13 +47,12 @@ export class InvoicesService {
 
   // Helper to parse date string in Vienna timezone
   private parseDateInViennaTimezone(dateString: string): Date {
-    // If the date string is in ISO format (YYYY-MM-DD), we need to treat it as Vienna time, not UTC
-    // Parse the date components
+    // Parse the date string (YYYY-MM-DD format)
     const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
     
-    // Create a date string that will be interpreted in Vienna timezone
-    // We use the Date constructor with separate components which creates a local time
-    const date = new Date(year, month - 1, day, 12, 0, 0); // Use noon to avoid DST issues
+    // Create a date at noon UTC to avoid any timezone issues
+    // When formatted in Vienna timezone (UTC+1 or UTC+2), this will always show the correct date
+    const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
     
     return date;
   }

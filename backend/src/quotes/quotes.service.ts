@@ -45,6 +45,22 @@ export class QuotesService {
     return { nextQuoteNumber: nextNumber };
   }
 
+  // Helper to parse date string in Vienna timezone
+  private parseDateInViennaTimezone(dateString: string): Date {
+    // Parse the date string (YYYY-MM-DD format)
+    const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
+    
+    // Create a date at noon Vienna time to avoid DST edge cases
+    // Vienna is UTC+1 (CET) or UTC+2 (CEST during DST)
+    // We create the date as if it were UTC, then adjust for Vienna timezone
+    const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    
+    // Adjust for Vienna timezone offset (typically -1 or -2 hours from UTC)
+    // By using UTC noon and then displaying in Vienna timezone, we ensure
+    // the date displayed is always the correct day
+    return date;
+  }
+
   // Calculate quote totals
   private calculateTotals(items: { quantity: number; unitPrice: number; discount?: number }[], taxRate: number, globalDiscount: number = 0) {
     // Round each line item to 2 decimals BEFORE summing to avoid floating point errors
@@ -111,10 +127,10 @@ export class QuotesService {
         quoteNumber,
         userId,
         clientId,
-        issueDate: createQuoteDto.issueDate ? new Date(createQuoteDto.issueDate) : new Date(),
-        validUntil: new Date(createQuoteDto.validUntil),
-        servicePeriodStart: createQuoteDto.servicePeriodStart ? new Date(createQuoteDto.servicePeriodStart) : null,
-        servicePeriodEnd: createQuoteDto.servicePeriodEnd ? new Date(createQuoteDto.servicePeriodEnd) : null,
+        issueDate: createQuoteDto.issueDate ? this.parseDateInViennaTimezone(createQuoteDto.issueDate) : new Date(),
+        validUntil: this.parseDateInViennaTimezone(createQuoteDto.validUntil),
+        servicePeriodStart: createQuoteDto.servicePeriodStart ? this.parseDateInViennaTimezone(createQuoteDto.servicePeriodStart) : null,
+        servicePeriodEnd: createQuoteDto.servicePeriodEnd ? this.parseDateInViennaTimezone(createQuoteDto.servicePeriodEnd) : null,
         status: createQuoteDto.status || QuoteStatus.DRAFT,
         subtotal: totals.subtotal,
         taxRate: new Decimal(taxRate),
@@ -277,16 +293,16 @@ export class QuotesService {
 
     // Convert date strings to Date objects
     if (updateQuoteDto.issueDate) {
-      updateData.issueDate = new Date(updateQuoteDto.issueDate);
+      updateData.issueDate = this.parseDateInViennaTimezone(updateQuoteDto.issueDate);
     }
     if (updateQuoteDto.validUntil) {
-      updateData.validUntil = new Date(updateQuoteDto.validUntil);
+      updateData.validUntil = this.parseDateInViennaTimezone(updateQuoteDto.validUntil);
     }
     if (updateQuoteDto.servicePeriodStart) {
-      updateData.servicePeriodStart = new Date(updateQuoteDto.servicePeriodStart);
+      updateData.servicePeriodStart = this.parseDateInViennaTimezone(updateQuoteDto.servicePeriodStart);
     }
     if (updateQuoteDto.servicePeriodEnd) {
-      updateData.servicePeriodEnd = new Date(updateQuoteDto.servicePeriodEnd);
+      updateData.servicePeriodEnd = this.parseDateInViennaTimezone(updateQuoteDto.servicePeriodEnd);
     }
 
     // Handle items update if provided
@@ -435,10 +451,10 @@ export class QuotesService {
     try {
       const quoteData = {
         quoteNumber: quote.quoteNumber,
-        issueDate: quote.issueDate.toISOString().split('T')[0],
-        validUntil: quote.validUntil.toISOString().split('T')[0],
-        servicePeriodStart: quote.servicePeriodStart ? quote.servicePeriodStart.toISOString().split('T')[0] : undefined,
-        servicePeriodEnd: quote.servicePeriodEnd ? quote.servicePeriodEnd.toISOString().split('T')[0] : undefined,
+        issueDate: quote.issueDate,
+        validUntil: quote.validUntil,
+        servicePeriodStart: quote.servicePeriodStart || undefined,
+        servicePeriodEnd: quote.servicePeriodEnd || undefined,
         client: {
           clientNumber: quote.client.clientNumber,
           name: quote.client.name,
@@ -547,7 +563,7 @@ export class QuotesService {
     const invoiceNumber = `INV-${year}-${nextNumber.toString().padStart(4, '0')}`;
 
     // Calculate due date (30 days from now if not provided)
-    const calculatedDueDate = dueDate ? new Date(dueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const calculatedDueDate = dueDate ? this.parseDateInViennaTimezone(dueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     // Create invoice from quote
     const invoice = await this.prisma.invoice.create({

@@ -346,8 +346,8 @@ export class PdfService {
         }).format(amount);
       };
 
-      const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr);
+      const formatDate = (dateStr: string | Date) => {
+        const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
         // Format the date in Vienna timezone using Intl.DateTimeFormat
         return new Intl.DateTimeFormat('de-DE', {
           day: '2-digit',

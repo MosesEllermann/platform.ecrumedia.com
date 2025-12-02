@@ -38,6 +38,15 @@ interface InvoiceItem {
 
 const ITEM_TYPE = 'INVOICE_ITEM';
 
+// Helper function to format date to YYYY-MM-DD in local timezone
+const formatDateForInput = (date: Date | string): string => {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 interface DraggableInvoiceItemProps {
   item: InvoiceItem;
   index: number;
@@ -410,10 +419,10 @@ Seth-Moses Ellermann`);
         // Populate form fields
         setSelectedClient(invoice.clientId || '');
         setInvoiceNumber(invoice.invoiceNumber);
-        setInvoiceDate(invoice.issueDate ? new Date(invoice.issueDate).toISOString().split('T')[0] : currentDate);
-        setDueDate(invoice.dueDate ? new Date(invoice.dueDate).toISOString().split('T')[0] : '');
-        setServicePeriodStart(invoice.servicePeriodStart ? new Date(invoice.servicePeriodStart).toISOString().split('T')[0] : '');
-        setServicePeriodEnd(invoice.servicePeriodEnd ? new Date(invoice.servicePeriodEnd).toISOString().split('T')[0] : '');
+        setInvoiceDate(invoice.issueDate ? formatDateForInput(invoice.issueDate) : currentDate);
+        setDueDate(invoice.dueDate ? formatDateForInput(invoice.dueDate) : '');
+        setServicePeriodStart(invoice.servicePeriodStart ? formatDateForInput(invoice.servicePeriodStart) : '');
+        setServicePeriodEnd(invoice.servicePeriodEnd ? formatDateForInput(invoice.servicePeriodEnd) : '');
         setIsReverseCharge(invoice.isReverseCharge || false);
         setGlobalDiscount(invoice.globalDiscount ? Number(invoice.globalDiscount) : 0);
         setShowGlobalDiscount(invoice.globalDiscount && Number(invoice.globalDiscount) > 0);
@@ -949,7 +958,7 @@ Seth-Moses Ellermann`);
                   onChange={(dates) => {
                     if (dates && dates.length > 0) {
                       const date = dates[0];
-                      setInvoiceDate(date.toISOString().split('T')[0]);
+                      setInvoiceDate(formatDateForInput(date));
                     }
                   }}
                 />
@@ -999,8 +1008,8 @@ Seth-Moses Ellermann`);
                   mode="range"
                   onChange={(dates) => {
                     if (dates && dates.length === 2) {
-                      setServicePeriodStart(dates[0].toISOString().split('T')[0]);
-                      setServicePeriodEnd(dates[1].toISOString().split('T')[0]);
+                      setServicePeriodStart(formatDateForInput(dates[0]));
+                      setServicePeriodEnd(formatDateForInput(dates[1]));
                     } else if (dates && dates.length === 0) {
                       setServicePeriodStart('');
                       setServicePeriodEnd('');

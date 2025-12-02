@@ -34,6 +34,15 @@ interface QuoteItem {
 
 const unitOptions = ['Stunde(n)', 'Tag(e)', 'Stück', 'Pauschal', 'km', 'Monat(e)', 'Jahr(e)'];
 
+// Helper function to format date to YYYY-MM-DD in local timezone
+const formatDateForInput = (date: Date | string): string => {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function CreateQuote() {
   const { token, isAdmin, user } = useAuth();
   const navigate = useNavigate();
@@ -56,7 +65,7 @@ export default function CreateQuote() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // Always use current date for quote date
-  const currentDate = new Date().toISOString().split('T')[0];
+  const currentDate = formatDateForInput(new Date());
 
   const [selectedClient, setSelectedClient] = useState('');
   const [quoteNumber, setQuoteNumber] = useState('');
@@ -89,7 +98,7 @@ Seth-Moses Ellermann`);
     if (quoteDate && validityDays) {
       const date = new Date(quoteDate);
       date.setDate(date.getDate() + validityDays);
-      setValidUntil(date.toISOString().split('T')[0]);
+      setValidUntil(formatDateForInput(date));
     }
   }, [quoteDate, validityDays]);
 
@@ -545,7 +554,7 @@ Seth-Moses Ellermann`);
                   defaultDate={new Date(quoteDate)}
                   onChange={(dates) => {
                     if (dates && dates.length > 0) {
-                      setQuoteDate(dates[0].toISOString().split('T')[0]);
+                      setQuoteDate(formatDateForInput(dates[0]));
                     }
                   }}
                 />
