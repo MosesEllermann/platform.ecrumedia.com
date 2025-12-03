@@ -349,6 +349,15 @@ export class ClientsService {
     return { message: 'Kunde erfolgreich gelöscht' };
   }
 
+  // Get statistics about clients
+  async getStats() {
+    const total = await this.prisma.client.count();
+    
+    return {
+      total,
+    };
+  }
+
   // Create client profile for a user (called during registration)
   async createFromUser(userId: string, userData: any) {
     const clientNumber = await this.getNextClientNumber();

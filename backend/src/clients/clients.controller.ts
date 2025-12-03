@@ -39,6 +39,12 @@ export class ClientsController {
     return this.clientsService.findAll();
   }
 
+  @Get('stats')
+  @Roles(UserRole.ADMIN)
+  getStats() {
+    return this.clientsService.getStats();
+  }
+
   @Get(':id')
   @Roles(UserRole.ADMIN)
   async findOne(@Param('id') id: string) {
