@@ -141,6 +141,7 @@ export class InvoicesService {
             const lineTotal = item.quantity * item.unitPrice;
             const discountAmount = item.discount ? (lineTotal * item.discount) / 100 : 0;
             const itemTotal = lineTotal - discountAmount;
+            const roundedItemTotal = Math.round(itemTotal * 100) / 100;
             
             return {
               productName: item.productName || null,
@@ -150,7 +151,7 @@ export class InvoicesService {
               unitPrice: new Decimal(item.unitPrice.toFixed(2)),
               taxRate: item.taxRate !== undefined ? new Decimal(item.taxRate) : null,
               discount: item.discount !== undefined ? new Decimal(item.discount) : new Decimal(0),
-              total: new Decimal(itemTotal.toFixed(2)),
+              total: new Decimal(roundedItemTotal.toFixed(2)),
             };
           }),
         },
@@ -355,6 +356,7 @@ export class InvoicesService {
           const lineTotal = item.quantity! * item.unitPrice!;
           const discountAmount = item.discount ? (lineTotal * item.discount) / 100 : 0;
           const itemTotal = lineTotal - discountAmount;
+          const roundedItemTotal = Math.round(itemTotal * 100) / 100;
           
           return {
             productName: item.productName || null,
@@ -364,7 +366,7 @@ export class InvoicesService {
             unitPrice: new Decimal(item.unitPrice!.toFixed(2)),
             taxRate: item.taxRate !== undefined ? new Decimal(item.taxRate) : null,
             discount: item.discount !== undefined ? new Decimal(item.discount) : new Decimal(0),
-            total: new Decimal(itemTotal.toFixed(2)),
+            total: new Decimal(roundedItemTotal.toFixed(2)),
           };
         }),
       };

@@ -355,6 +355,31 @@ Seth-Moses Ellermann`);
   const handleSaveAsDraft = useCallback(async (e?: React.FormEvent, isAutoSave = false) => {
     if (e) e.preventDefault();
     
+    // Validate required fields before saving
+    if (!selectedClient) {
+      if (!isAutoSave) {
+        setError('Bitte wählen Sie einen Kunden aus');
+        setIsErrorExiting(false);
+        setTimeout(() => {
+          setIsErrorExiting(true);
+          setTimeout(() => setError(''), 500);
+        }, 4500);
+      }
+      return;
+    }
+    
+    if (!validUntil) {
+      if (!isAutoSave) {
+        setError('Bitte setzen Sie ein Gültigkeitsdatum');
+        setIsErrorExiting(false);
+        setTimeout(() => {
+          setIsErrorExiting(true);
+          setTimeout(() => setError(''), 500);
+        }, 4500);
+      }
+      return;
+    }
+    
     if (!isAutoSave) {
       setError('');
       setSuccess('');
@@ -445,7 +470,7 @@ Seth-Moses Ellermann`);
   // Auto-save effect (every 15 seconds)
   useEffect(() => {
     const autoSaveInterval = setInterval(() => {
-      if (items.length > 0 && selectedClient) {
+      if (items.length > 0 && selectedClient && validUntil) {
         handleSaveAsDraft(undefined, true);
       }
     }, 15000); // 15 seconds
