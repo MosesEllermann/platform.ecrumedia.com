@@ -241,15 +241,25 @@ export default function Invoices() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white/90">
-          {t('invoices.title')}
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          {isAdmin 
-            ? 'Administrator-Ansicht: Alle Rechnungen aller Kunden' 
-            : 'Verwalten Sie Ihre Rechnungen und Zahlungen'}
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white/90">
+            {t('invoices.title')}
+          </h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            {isAdmin 
+              ? 'Administrator-Ansicht: Alle Rechnungen aller Kunden' 
+              : 'Verwalten Sie Ihre Rechnungen und Zahlungen'}
+          </p>
+        </div>
+        {isAdmin && (
+          <Link
+            to="/invoices/create"
+            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition font-medium"
+          >
+            + Rechnung erstellen
+          </Link>
+        )}
       </div>
 
       {/* Admin Info Banner */}
