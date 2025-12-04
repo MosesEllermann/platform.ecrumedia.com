@@ -57,6 +57,7 @@ export default function App() {
               {/* Quotes */}
               <Route path="/quotes" element={<Quotes />} />
               <Route path="/quotes/create" element={<CreateQuote />} />
+              <Route path="/quotes/edit/:id" element={<CreateQuote />} />
               <Route path="/quotes/review" element={<ReviewAndSendQuote />} />
 
               {/* Clients */}

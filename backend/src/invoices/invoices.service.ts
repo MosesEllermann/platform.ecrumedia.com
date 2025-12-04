@@ -123,7 +123,7 @@ export class InvoicesService {
         invoiceNumber,
         userId,
         clientId,
-        issueDate: createInvoiceDto.issueDate ? this.parseDateInViennaTimezone(createInvoiceDto.issueDate) : new Date(),
+        issueDate: createInvoiceDto.issueDate ? this.parseDateInViennaTimezone(createInvoiceDto.issueDate) : this.parseDateInViennaTimezone(new Date().toISOString().split('T')[0]),
         dueDate: this.parseDateInViennaTimezone(createInvoiceDto.dueDate),
         servicePeriodStart: createInvoiceDto.servicePeriodStart ? this.parseDateInViennaTimezone(createInvoiceDto.servicePeriodStart) : null,
         servicePeriodEnd: createInvoiceDto.servicePeriodEnd ? this.parseDateInViennaTimezone(createInvoiceDto.servicePeriodEnd) : null,

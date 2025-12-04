@@ -374,7 +374,7 @@ Seth-Moses Ellermann`);
     }
   }, []);
 
-  // Calculate due date based on payment terms
+  // Calculate due date based on payment terms (always)
   useEffect(() => {
     if (invoiceDate && paymentTerms) {
       const date = new Date(invoiceDate);
@@ -419,10 +419,25 @@ Seth-Moses Ellermann`);
         // Populate form fields
         setSelectedClient(invoice.clientId || '');
         setInvoiceNumber(invoice.invoiceNumber);
-        setInvoiceDate(invoice.issueDate ? formatDateForInput(invoice.issueDate) : currentDate);
-        setDueDate(invoice.dueDate ? formatDateForInput(invoice.dueDate) : '');
+        
+        const issueDate = invoice.issueDate ? formatDateForInput(invoice.issueDate) : currentDate;
+        const dueDate = invoice.dueDate ? formatDateForInput(invoice.dueDate) : '';
+        
+        setInvoiceDate(issueDate);
+        setDueDate(dueDate);
+        
+        // Calculate payment terms from the difference between issue date and due date
+        if (invoice.issueDate && invoice.dueDate) {
+          const issue = new Date(invoice.issueDate);
+          const due = new Date(invoice.dueDate);
+          const diffTime = due.getTime() - issue.getTime();
+          const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+          setPaymentTerms(diffDays > 0 ? diffDays : 14); // Default to 14 if calculation fails
+        }
+        
         setServicePeriodStart(invoice.servicePeriodStart ? formatDateForInput(invoice.servicePeriodStart) : '');
         setServicePeriodEnd(invoice.servicePeriodEnd ? formatDateForInput(invoice.servicePeriodEnd) : '');
+        
         setIsReverseCharge(invoice.isReverseCharge || false);
         setGlobalDiscount(invoice.globalDiscount ? Number(invoice.globalDiscount) : 0);
         setShowGlobalDiscount(invoice.globalDiscount && Number(invoice.globalDiscount) > 0);
@@ -650,33 +665,35 @@ Seth-Moses Ellermann`);
       const url = invoiceId ? apiUrl(`/invoices/${invoiceId}`) : apiUrl('/invoices');
       const method = invoiceId ? 'PATCH' : 'POST';
       
+      const requestBody = {
+        clientId: selectedClient,
+        invoiceNumber,
+        issueDate: invoiceDate,
+        dueDate,
+        servicePeriodStart: servicePeriodStart || undefined,
+        servicePeriodEnd: servicePeriodEnd || undefined,
+        isReverseCharge,
+        notes: `${notes}\n\n${conditions}`,
+        status: 'DRAFT',
+        globalDiscount,
+        items: items.map(item => ({
+          productName: item.productName || undefined,
+          description: item.description,
+          quantity: item.quantity,
+          unitName: item.unitName || undefined,
+          unitPrice: item.unitNetPrice,
+          taxRate: item.taxRate || undefined,
+          discount: item.discount || 0,
+        })),
+      };
+      
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          clientId: selectedClient,
-          invoiceNumber,
-          issueDate: invoiceDate,
-          dueDate,
-          servicePeriodStart: servicePeriodStart || undefined,
-          servicePeriodEnd: servicePeriodEnd || undefined,
-          isReverseCharge,
-          notes: `${notes}\n\n${conditions}`,
-          status: 'DRAFT',
-          globalDiscount,
-          items: items.map(item => ({
-            productName: item.productName || undefined,
-            description: item.description,
-            quantity: item.quantity,
-            unitName: item.unitName || undefined,
-            unitPrice: item.unitNetPrice,
-            taxRate: item.taxRate || undefined,
-            discount: item.discount || 0,
-          })),
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -984,7 +1001,7 @@ Seth-Moses Ellermann`);
                 </div>
               </div>
 
-              {/* Due Date */}
+              {/* Due Date - Read Only */}
               <div>
                 <label htmlFor="dueDate" className="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">
                   Fälligkeitsdatum
@@ -993,9 +1010,8 @@ Seth-Moses Ellermann`);
                   type="date"
                   id="dueDate"
                   value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none transition"
+                  readOnly
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-400 cursor-not-allowed outline-none"
                 />
               </div>
 
@@ -1006,6 +1022,11 @@ Seth-Moses Ellermann`);
                   label="Leistungszeitraum"
                   placeholder="Von - Bis auswählen"
                   mode="range"
+                  defaultDate={
+                    (servicePeriodStart && servicePeriodEnd
+                      ? [new Date(servicePeriodStart), new Date(servicePeriodEnd)]
+                      : undefined) as any
+                  }
                   onChange={(dates) => {
                     if (dates && dates.length === 2) {
                       setServicePeriodStart(formatDateForInput(dates[0]));

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Link, useLocation } from 'react-router';
+import { apiUrl } from '../../config/api';
 
 interface Quote {
   id: string;
@@ -42,12 +43,12 @@ export default function Quotes() {
   const fetchQuotes = async () => {
     try {
       setLoading(true);
-      const url = new URL('http://localhost:3001/api/quotes');
+      let url = apiUrl('/quotes');
       if (filter !== 'all') {
-        url.searchParams.append('status', filter.toUpperCase());
+        url += `?status=${filter.toUpperCase()}`;
       }
 
-      const response = await fetch(url.toString(), {
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -70,7 +71,7 @@ export default function Quotes() {
     }
 
     try {
-      const response = await fetch(`http://localhost:3001/api/quotes/${quoteId}/convert-to-invoice`, {
+      const response = await fetch(apiUrl(`/quotes/${quoteId}/convert-to-invoice`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -303,20 +304,30 @@ export default function Quotes() {
                           {quote.status === 'DRAFT' && (
                             <Link
                               to={`/quotes/edit/${quote.id}`}
-                              className="p-2 text-blue-600 hover:text-white dark:text-blue-400 hover:bg-blue-600 dark:hover:bg-blue-500 dark:hover:text-white rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 hover:text-white dark:text-blue-400 hover:bg-blue-600 dark:hover:bg-blue-500 dark:hover:text-white rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
                               title="Angebot bearbeiten"
                             >
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                               </svg>
+                              <span>Bearbeiten</span>
                             </Link>
                           )}
                           {quote.status !== 'CONVERTED' && (
                             <button
                               onClick={() => handleConvertToInvoice(quote.id)}
-                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition text-sm"
+                              className="group inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                              title="Angebot in Rechnung umwandeln"
                             >
-                              In Rechnung umwandeln
+                              <div className="relative w-4 h-4">
+                                <svg className="absolute inset-0 w-4 h-4 transition-opacity duration-300 group-hover:opacity-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                                <svg className="absolute inset-0 w-4 h-4 transition-opacity duration-300 opacity-0 group-hover:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                </svg>
+                              </div>
+                              <span>In Rechnung umwandeln</span>
                             </button>
                           )}
                         </div>

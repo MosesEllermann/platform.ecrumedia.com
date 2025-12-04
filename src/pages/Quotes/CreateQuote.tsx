@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import AddClientModal from '../../components/common/AddClientModal';
 import QuotePDFPreview, { QuotePDFPreviewRef } from '../../components/common/QuotePDFPreview';
 import DatePicker from '../../components/form/date-picker';
@@ -46,6 +46,7 @@ const formatDateForInput = (date: Date | string): string => {
 export default function CreateQuote() {
   const { token, isAdmin, user } = useAuth();
   const navigate = useNavigate();
+  const { id: quoteId } = useParams<{ id: string }>();
   const pdfRef = useRef<QuotePDFPreviewRef>(null);
 
   useEffect(() => {
@@ -86,11 +87,23 @@ Bei Auftragserteilung gelten unsere allgemeinen Geschäftsbedingungen.
 Mit freundlichen Grüßen
 Seth-Moses Ellermann`);
 
+  // Load existing quote if editing
   useEffect(() => {
-    // Always set current date on component mount
-    setQuoteDate(currentDate);
+    if (quoteId) {
+      fetchQuote(quoteId);
+    }
+  }, [quoteId]);
+
+  useEffect(() => {
+    // Always set current date on component mount if not editing
+    if (!quoteId) {
+      setQuoteDate(currentDate);
+    }
     fetchClients();
-    fetchNextQuoteNumber();
+    // Only fetch next quote number if not editing
+    if (!quoteId) {
+      fetchNextQuoteNumber();
+    }
   }, []);
 
   // Calculate valid until date based on validity days
@@ -120,6 +133,92 @@ Seth-Moses Ellermann`);
       }
     }
   }, [selectedClient, clients]);
+
+  const fetchQuote = async (id: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(apiUrl(`/quotes/${id}`), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const quote = await response.json();
+        
+        // Populate form fields
+        setSelectedClient(quote.clientId || '');
+        setQuoteNumber(quote.quoteNumber);
+        
+        const issueDate = quote.issueDate ? formatDateForInput(quote.issueDate) : currentDate;
+        const validUntilDate = quote.validUntil ? formatDateForInput(quote.validUntil) : '';
+        
+        setQuoteDate(issueDate);
+        setValidUntil(validUntilDate);
+        
+        // Calculate validity days from the difference between issue date and valid until
+        if (quote.issueDate && quote.validUntil) {
+          const issue = new Date(quote.issueDate);
+          const valid = new Date(quote.validUntil);
+          const diffTime = valid.getTime() - issue.getTime();
+          const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+          setValidityDays(diffDays > 0 ? diffDays : 30); // Default to 30 if calculation fails
+        }
+        
+        setIsReverseCharge(quote.isReverseCharge || false);
+        setGlobalDiscount(quote.globalDiscount ? Number(quote.globalDiscount) : 0);
+        setShowGlobalDiscount(quote.globalDiscount && Number(quote.globalDiscount) > 0);
+        
+        // Parse notes - split notes and conditions if they were combined
+        const notesText = quote.notes || '';
+        const notesLines = notesText.split('\n\n');
+        if (notesLines.length > 1) {
+          setNotes(notesLines[0]);
+          setConditions(notesLines.slice(1).join('\n\n'));
+        } else {
+          setNotes(notesText);
+        }
+        
+        // Convert items
+        const quoteItems: QuoteItem[] = quote.items.map((item: any) => {
+          const quantity = Number(item.quantity);
+          const unitPrice = Number(item.unitPrice);
+          const taxRate = item.taxRate ? Number(item.taxRate) : (quote.isReverseCharge ? 0 : 20);
+          const discount = item.discount ? Number(item.discount) : 0;
+          
+          // Calculate amounts
+          const subtotal = quantity * unitPrice;
+          const discountAmount = subtotal * (discount / 100);
+          const netAmount = subtotal - discountAmount;
+          const taxAmount = netAmount * (taxRate / 100);
+          const total = netAmount + taxAmount;
+          
+          return {
+            id: item.id || crypto.randomUUID(),
+            productName: item.productName || '',
+            description: item.description || '',
+            quantity,
+            unitName: item.unitName || 'Stunde(n)',
+            unitPrice,
+            taxRate,
+            discount,
+            netAmount,
+            total,
+          };
+        });
+        
+        setItems(quoteItems);
+        setShowProductDiscount(quoteItems.some(item => item.discount > 0));
+      } else {
+        setError('Angebot nicht gefunden');
+      }
+    } catch (err) {
+      console.error('Failed to fetch quote:', err);
+      setError('Fehler beim Laden des Angebots');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchClients = async () => {
     try {
@@ -265,8 +364,11 @@ Seth-Moses Ellermann`);
     }
 
     try {
-      const response = await fetch(apiUrl('/quotes'), {
-        method: 'POST',
+      const url = quoteId ? apiUrl(`/quotes/${quoteId}`) : apiUrl('/quotes');
+      const method = quoteId ? 'PATCH' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -299,11 +401,11 @@ Seth-Moses Ellermann`);
         throw new Error(errorData.message || 'Fehler beim Speichern des Angebots');
       }
 
-      const createdQuote = await response.json();
+      const savedQuote = await response.json();
       setLastSaved(new Date());
       
       if (!isAutoSave) {
-        setSuccess(`Angebot ${createdQuote.quoteNumber} wurde gespeichert!`);
+        setSuccess(`Angebot ${savedQuote.quoteNumber} wurde gespeichert!`);
         setIsSuccessExiting(false);
         setTimeout(() => {
           setIsSuccessExiting(true);
@@ -311,11 +413,16 @@ Seth-Moses Ellermann`);
             // Navigate back to quotes list with success message
             navigate('/quotes', {
               state: {
-                success: `Angebot ${createdQuote.quoteNumber} wurde als Entwurf gespeichert!`,
+                success: `Angebot ${savedQuote.quoteNumber} wurde als Entwurf gespeichert!`,
               },
             });
           }, 500);
         }, 3000);
+        
+        // Update URL if we just created a new quote
+        if (!quoteId && savedQuote.id) {
+          navigate(`/quotes/edit/${savedQuote.id}`, { replace: true });
+        }
       }
     } catch (err: any) {
       if (!isAutoSave) {
@@ -333,7 +440,7 @@ Seth-Moses Ellermann`);
         setAutoSaving(false);
       }
     }
-  }, [token, selectedClient, quoteNumber, quoteDate, validUntil, servicePeriodStart, servicePeriodEnd, isReverseCharge, notes, conditions, globalDiscount, items, navigate]);
+  }, [token, selectedClient, quoteNumber, quoteDate, validUntil, servicePeriodStart, servicePeriodEnd, isReverseCharge, notes, conditions, globalDiscount, items, navigate, quoteId]);
 
   // Auto-save effect (every 15 seconds)
   useEffect(() => {
@@ -587,9 +694,8 @@ Seth-Moses Ellermann`);
                   type="date"
                   id="validUntil"
                   value={validUntil}
-                  onChange={(e) => setValidUntil(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none transition"
+                  readOnly
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-400 cursor-not-allowed outline-none"
                 />
               </div>
 

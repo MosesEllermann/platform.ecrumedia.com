@@ -127,7 +127,7 @@ export class QuotesService {
         quoteNumber,
         userId,
         clientId,
-        issueDate: createQuoteDto.issueDate ? this.parseDateInViennaTimezone(createQuoteDto.issueDate) : new Date(),
+        issueDate: createQuoteDto.issueDate ? this.parseDateInViennaTimezone(createQuoteDto.issueDate) : this.parseDateInViennaTimezone(new Date().toISOString().split('T')[0]),
         validUntil: this.parseDateInViennaTimezone(createQuoteDto.validUntil),
         servicePeriodStart: createQuoteDto.servicePeriodStart ? this.parseDateInViennaTimezone(createQuoteDto.servicePeriodStart) : null,
         servicePeriodEnd: createQuoteDto.servicePeriodEnd ? this.parseDateInViennaTimezone(createQuoteDto.servicePeriodEnd) : null,
